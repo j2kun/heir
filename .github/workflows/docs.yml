@@ -17,7 +17,6 @@ jobs:
     - name: Checkout
       uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
       with:
-        path: 'docs'
         fetch-depth: 0         # Fetch all history for .GitInfo and .Lastmod
 
     - name: Setup Hugo
@@ -38,10 +37,12 @@ jobs:
         cache-dependency-path: '**/package-lock.json'
 
     - name: Install Docsy dependencies
+      working-directory: ./docs
       run: npm ci
 
     - name: Build
-      run: cd docs && hugo --minify
+      working-directory: ./docs
+      run: hugo --minify
 
     - name: Deploy
       uses: peaceiris/actions-gh-pages@373f7f263a76c20808c831209c920827a82a2847 # pin@v3.9.3
