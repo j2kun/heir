@@ -1,5 +1,4 @@
-
-name: github pages
+name: Build website, deploy to GH pages if on main
 
 on:
   push:
@@ -27,7 +26,6 @@ jobs:
         hugo-version: '0.113.0'
         extended: true
 
-    # Node is needed for the special stuff that the docsy template does.
     - name: Setup Node
       uses: actions/setup-node@v3
       with:
@@ -39,7 +37,8 @@ jobs:
         # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-data
         cache-dependency-path: '**/package-lock.json'
 
-    - run: npm ci
+    - name: Install Docsy dependencies
+      run: npm ci
 
     - name: Build
       run: cd docs && hugo --minify
