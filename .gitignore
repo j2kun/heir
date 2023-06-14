@@ -5,9 +5,8 @@ bazel-testlogs
 
 # Generated files by hugo
 docs/public/
-docs/resources/_gen/
+docs/resources/
 docs/assets/jsconfig.json
-docs/node_modules
-hugo_stats.json
-# Temporary lock file while building
+docs/node_modules/
 .hugo_build.lock
+hugo_stats.json
