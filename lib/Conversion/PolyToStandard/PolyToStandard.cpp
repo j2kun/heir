@@ -19,6 +19,24 @@ namespace poly {
 #define GEN_PASS_DEF_POLYTOSTANDARD
 #include "include/Conversion/PolyToStandard/PolyToStandard.h.inc"
 
+namespace {
+
+// buildPolyDivMod builds an implementation of Euclidean division to compute the
+// remainder of the input tensor modulo the ideal polynomial.
+Operation *buildPolyDivMod(ImplicitLocOpBuilder b, RankedTensorType input,
+                           RingAttr ring) {
+  // Require euclidean division with the ideal polynomial
+  // Lowerings will fail if you don't have a prime coeff OR monic polynomial in
+  // a commutative ring
+  auto resultTy = RankedTensorType::get(
+      {ring.ideal().getDegree()},
+      b.getIntegerType(ring.coefficientModulus().getBitWidth()));
+  return b.create<tensor::EmptyOp>(resultTy.getShape(),
+                                   resultTy.getElementType());
+}
+
+}  // namespace
+
 class PolyToStandardTypeConverter : public TypeConverter {
  public:
   PolyToStandardTypeConverter(MLIRContext *ctx) {
@@ -176,16 +194,46 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
   }
 };
 
+// TODO(https://github.com/google/heir/issues/104): implement
 struct ConvertMul : public OpConversionPattern<MulOp> {
   ConvertMul(mlir::MLIRContext *context)
       : OpConversionPattern<MulOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
+  // Naive polynomial multiplication implementation.
+  // 1-D convolution (extend bits?)
+  // Remainder modulo ring ideal
+  // n = batch size, c = channels, w = width
   LogicalResult matchAndRewrite(
       MulOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    // TODO(https://github.com/google/heir/issues/104): implement
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    // TODO: Assumes single poly
+    auto polyTy = dyn_cast<PolyType>(op.getResult().getType());
+    if (!polyTy) {
+      return failure();
+    }
+
+    // TODO: Upgrade to power of two
+    auto convWidth = polyTy.getRing().coefficientModulus().getActiveBits() * 2;
+    auto eltType = b.getIntegerType(convWidth);
+
+    auto convDegree = 2 * polyTy.getRing().getIdeal().getDegree() + 1;
+    auto convType = RankedTensorType::get({convDegree}, eltType);
+
+    // Create 1-D convolution
+    auto convOutput = b.create<tensor::EmptyOp>(convType.getShape(),
+                                                convType.getElementType());
+    linalg::Conv1DOp conv = b.create<linalg::Conv1DOp>(
+        adaptor.getOperands(), ValueRange{convOutput.getResult()});
+
+    // 2N + 1 sized result tensor -> reduce modulo ideal to get a N sized tensor
+
+    // rewriter.replaceOp(op, buildPolyDivMod(b, convResult,
+    // polyTy.getRing().getIdeal()));
+
     return success();
   }
 };
@@ -207,8 +255,8 @@ struct PolyToStandard : impl::PolyToStandardBase<PolyToStandard> {
     // target.addIllegalOp<MulOp>();
 
     RewritePatternSet patterns(context);
-    patterns.add<ConvertFromTensor, ConvertToTensor, ConvertAdd>(typeConverter,
-                                                                 context);
+    patterns.add<ConvertFromTensor, ConvertToTensor, ConvertAdd, ConvertMul>(
+        typeConverter, context);
     addStructuralConversionPatterns(typeConverter, patterns, target);
 
     // TODO(https://github.com/google/heir/issues/143): Handle tensor of polys.

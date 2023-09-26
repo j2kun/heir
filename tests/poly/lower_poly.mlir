@@ -113,4 +113,20 @@ module {
     // CHECK: return
     return
   }
+
+  func.func @lower_poly_mul() -> !poly.poly<#ring> {
+    // 2 + 2x + 2x^2 + ... + 2x^{1023}
+    // CHECK: [[X:%.+]] = arith.constant dense<2> : [[T:tensor<1024xi32>]]
+    %coeffs1 = arith.constant dense<2> : tensor<1024xi32>
+    // CHECK: [[Y:%.+]] = arith.constant dense<3> : [[T]]
+    %coeffs2 = arith.constant dense<3> : tensor<1024xi32>
+    // CHECK-NOT: poly.from_tensor
+    // CHECK: [[XEXT:%.+]] = arith.extui [[X]] : [[T]] to [[TPOLY:tensor<1024xi64>]]
+    // CHECK: [[YEXT:%.+]] = arith.extui [[Y]] : [[T]] to [[TPOLY:tensor<1024xi64>]]
+    %poly0 = poly.from_tensor %coeffs1 : tensor<1024xi32> -> !poly.poly<#ring>
+    %poly1 = poly.from_tensor %coeffs2 : tensor<1024xi32> -> !poly.poly<#ring>
+    %poly2 = poly.mul(%poly0, %poly1) {ring = #ring} : !poly.poly<#ring>
+    // CHECK: return
+    return %poly2 : !poly.poly<#ring>
+  }
 }
