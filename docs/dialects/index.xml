@@ -627,7 +627,7 @@ ending bit are reserved for noise.&lt;/p>
 &lt;p>The presence of this attribute as the &lt;code>encoding&lt;/code> attribute of a tensor
 indicates that the tensor is an LWE ciphertext.&lt;/p>
 &lt;p>Example:&lt;/p>
-&lt;pre tabindex="0">&lt;code>#lwe_encoding = #lwe.polynomial_coefficient_encoding&amp;lt;cleartext_start=30, cleartext_bitwidth=3&amp;gt;
+&lt;pre tabindex="0">&lt;code>#lwe_encoding = #lwe.bit_field_encoding&amp;lt;cleartext_start=30, cleartext_bitwidth=3&amp;gt;
 %lwe_ciphertext = arith.constant &amp;lt;[1,2,3,4]&amp;gt; : tensor&amp;lt;4xi32, #lwe_encoding&amp;gt;
 &lt;/code>&lt;/pre>&lt;h4 id="parameters">Parameters:&lt;/h4>
 &lt;table>
@@ -674,6 +674,38 @@ unsigned # dimension
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">dimension&lt;/td>
+&lt;td style="text-align:center">&lt;code>unsigned&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="unspecifiedbitfieldencodingattr">UnspecifiedBitFieldEncodingAttr&lt;/h3>
+&lt;p>An attribute describing unspecified bit field encodings.&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#lwe.unspecified_bit_field_encoding&amp;lt;
+unsigned # cleartext_bitwidth
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>See LWE_BitFieldEncoding for a description of bit field encodings.&lt;/p>
+&lt;p>This attribute describes an unspecified bit field encoding; this is where
+the starting bit position of the cleartext bit field is unspecified, but its
+width is fixed. A noise growth analysis should be performed to determine the
+optimal amount of bits needed for noise and padding to specify the bit field
+encodings starting bit position.&lt;/p>
+&lt;p>Example:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#lwe_encoding = #lwe.unspecified_bit_field_encoding&amp;lt;cleartext_bitwidth=3&amp;gt;
+%lwe_ciphertext = arith.constant &amp;lt;[1,2,3,4]&amp;gt; : tensor&amp;lt;4xi32, #lwe_encoding&amp;gt;
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-2">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">cleartext_bitwidth&lt;/td>
 &lt;td style="text-align:center">&lt;code>unsigned&lt;/code>&lt;/td>
 &lt;td>&lt;/td>
 &lt;/tr>
@@ -751,7 +783,7 @@ coefficients.&lt;/p>
 %poly1 = poly.intt %evals : tensor&amp;lt;4xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;
 %poly2 = poly.intt %evals : tensor&amp;lt;4xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;
 %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor&amp;lt;2x!poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;&amp;gt;
-&lt;/code>&lt;/pre>&lt;h4 id="parameters-2">Parameters:&lt;/h4>
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-3">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -793,7 +825,7 @@ scheme that supports the coefficient encoding.&lt;/p>
 %poly1 = poly.from_tensor %coeffs1 : tensor&amp;lt;10xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring&amp;gt;
 %poly2 = poly.from_tensor %coeffs2 : tensor&amp;lt;10xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring&amp;gt;
 %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor&amp;lt;2x!poly.poly&amp;lt;#ring&amp;gt;, #coeff_encoding&amp;gt;
-&lt;/code>&lt;/pre>&lt;h4 id="parameters-3">Parameters:&lt;/h4>
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-4">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -854,7 +886,7 @@ NTT/INTT to tansform quickly between the coefficient and evaluation forms.&lt;/p
 %poly1 = poly.intt %evals : tensor&amp;lt;4xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;
 %poly2 = poly.intt %evals : tensor&amp;lt;4xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;
 %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor&amp;lt;2x!poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;&amp;gt;
-&lt;/code>&lt;/pre>&lt;h4 id="parameters-4">Parameters:&lt;/h4>
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-5">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -882,45 +914,14 @@ NTT/INTT to tansform quickly between the coefficient and evaluation forms.&lt;/p
 &lt;p>A type for LWE ciphertexts&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>!lwe.lwe_ciphertext&amp;lt;
-::mlir::heir::lwe::BitFieldEncodingAttr, # encoding
-::mlir::heir::lwe::LWEParamsAttr # lwe_params
+::mlir::Attribute, # encoding
+LWEParamsAttr # lwe_params
 &amp;gt;
 &lt;/code>&lt;/pre>&lt;p>A type for LWE ciphertexts.&lt;/p>
 &lt;p>This type keeps track of the plaintext integer encoding for the LWE
 Ciphertext to ensure proper decoding after decryption. It also keeps track
 of the ring where the LWE ciphertext is defined, which provides information
 on the ciphertext shape and the ring operations used in LWE operations.&lt;/p>
-&lt;h4 id="parameters-5">Parameters:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Parameter&lt;/th>
-&lt;th style="text-align:center">C++ type&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">encoding&lt;/td>
-&lt;td style="text-align:center">&lt;code>::mlir::heir::lwe::BitFieldEncodingAttr&lt;/code>&lt;/td>
-&lt;td>An attribute describing encoded LWE plaintexts using bit fields.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">lwe_params&lt;/td>
-&lt;td style="text-align:center">&lt;code>::mlir::heir::lwe::LWEParamsAttr&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="lweplaintexttype">LWEPlaintextType&lt;/h3>
-&lt;p>A type for LWE plaintexts&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>!lwe.lwe_plaintext&amp;lt;
-::mlir::heir::lwe::BitFieldEncodingAttr # encoding
-&amp;gt;
-&lt;/code>&lt;/pre>&lt;p>A type for LWE plaintexts.&lt;/p>
-&lt;p>This type keeps track of the plaintext integer encoding for the LWE
-plaintext before it is encrypted.&lt;/p>
 &lt;h4 id="parameters-6">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -933,8 +934,39 @@ plaintext before it is encrypted.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">encoding&lt;/td>
-&lt;td style="text-align:center">&lt;code>::mlir::heir::lwe::BitFieldEncodingAttr&lt;/code>&lt;/td>
-&lt;td>An attribute describing encoded LWE plaintexts using bit fields.&lt;/td>
+&lt;td style="text-align:center">&lt;code>::mlir::Attribute&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">lwe_params&lt;/td>
+&lt;td style="text-align:center">&lt;code>LWEParamsAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="lweplaintexttype">LWEPlaintextType&lt;/h3>
+&lt;p>A type for LWE plaintexts&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>!lwe.lwe_plaintext&amp;lt;
+::mlir::Attribute # encoding
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>A type for LWE plaintexts.&lt;/p>
+&lt;p>This type keeps track of the plaintext integer encoding for the LWE
+plaintext before it is encrypted.&lt;/p>
+&lt;h4 id="parameters-7">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">encoding&lt;/td>
+&lt;td style="text-align:center">&lt;code>::mlir::Attribute&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table></description></item><item><title>Docs: PolyExt</title><link>https://google.github.io/heir/docs/dialects/polyext/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/dialects/polyext/</guid><description>
@@ -1667,58 +1699,58 @@ models of the various passes.&lt;/p>
 &lt;p>See &lt;a href="https://github.com/zama-ai/tfhe-rs">https://github.com/zama-ai/tfhe-rs&lt;/a>&lt;/p>
 &lt;h2 id="tfherust-types">TfheRust types&lt;/h2>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h3 id="tfherust_encryptedint8type">TfheRust_EncryptedInt8Type&lt;/h3>
+&lt;h3 id="encryptedint8type">EncryptedInt8Type&lt;/h3>
 &lt;p>An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type.&lt;/p>
 &lt;p>Syntax: &lt;code>!tfhe_rust.ei8&lt;/code>&lt;/p>
-&lt;h3 id="tfherust_encryptedint16type">TfheRust_EncryptedInt16Type&lt;/h3>
+&lt;h3 id="encryptedint16type">EncryptedInt16Type&lt;/h3>
 &lt;p>An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type.&lt;/p>
 &lt;p>Syntax: &lt;code>!tfhe_rust.ei16&lt;/code>&lt;/p>
-&lt;h3 id="tfherust_encryptedint32type">TfheRust_EncryptedInt32Type&lt;/h3>
+&lt;h3 id="encryptedint32type">EncryptedInt32Type&lt;/h3>
 &lt;p>An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type.&lt;/p>
 &lt;p>Syntax: &lt;code>!tfhe_rust.ei32&lt;/code>&lt;/p>
-&lt;h3 id="tfherust_encryptedint64type">TfheRust_EncryptedInt64Type&lt;/h3>
+&lt;h3 id="encryptedint64type">EncryptedInt64Type&lt;/h3>
 &lt;p>An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type.&lt;/p>
 &lt;p>Syntax: &lt;code>!tfhe_rust.ei64&lt;/code>&lt;/p>
-&lt;h3 id="tfherust_encryptedint128type">TfheRust_EncryptedInt128Type&lt;/h3>
+&lt;h3 id="encryptedint128type">EncryptedInt128Type&lt;/h3>
 &lt;p>An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type.&lt;/p>
 &lt;p>Syntax: &lt;code>!tfhe_rust.ei128&lt;/code>&lt;/p>
-&lt;h3 id="tfherust_encryptedint256type">TfheRust_EncryptedInt256Type&lt;/h3>
+&lt;h3 id="encryptedint256type">EncryptedInt256Type&lt;/h3>
 &lt;p>An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type.&lt;/p>
 &lt;p>Syntax: &lt;code>!tfhe_rust.ei256&lt;/code>&lt;/p>
-&lt;h3 id="tfherust_encrypteduint2type">TfheRust_EncryptedUInt2Type&lt;/h3>
+&lt;h3 id="encrypteduint2type">EncryptedUInt2Type&lt;/h3>
 &lt;p>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type.&lt;/p>
 &lt;p>Syntax: &lt;code>!tfhe_rust.eui2&lt;/code>&lt;/p>
-&lt;h3 id="tfherust_encrypteduint3type">TfheRust_EncryptedUInt3Type&lt;/h3>
+&lt;h3 id="encrypteduint3type">EncryptedUInt3Type&lt;/h3>
 &lt;p>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type.&lt;/p>
 &lt;p>Syntax: &lt;code>!tfhe_rust.eui3&lt;/code>&lt;/p>
-&lt;h3 id="tfherust_encrypteduint4type">TfheRust_EncryptedUInt4Type&lt;/h3>
+&lt;h3 id="encrypteduint4type">EncryptedUInt4Type&lt;/h3>
 &lt;p>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type.&lt;/p>
 &lt;p>Syntax: &lt;code>!tfhe_rust.eui4&lt;/code>&lt;/p>
-&lt;h3 id="tfherust_encrypteduint8type">TfheRust_EncryptedUInt8Type&lt;/h3>
+&lt;h3 id="encrypteduint8type">EncryptedUInt8Type&lt;/h3>
 &lt;p>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type.&lt;/p>
 &lt;p>Syntax: &lt;code>!tfhe_rust.eui8&lt;/code>&lt;/p>
-&lt;h3 id="tfherust_encrypteduint10type">TfheRust_EncryptedUInt10Type&lt;/h3>
+&lt;h3 id="encrypteduint10type">EncryptedUInt10Type&lt;/h3>
 &lt;p>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type.&lt;/p>
 &lt;p>Syntax: &lt;code>!tfhe_rust.eui10&lt;/code>&lt;/p>
-&lt;h3 id="tfherust_encrypteduint12type">TfheRust_EncryptedUInt12Type&lt;/h3>
+&lt;h3 id="encrypteduint12type">EncryptedUInt12Type&lt;/h3>
 &lt;p>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type.&lt;/p>
 &lt;p>Syntax: &lt;code>!tfhe_rust.eui12&lt;/code>&lt;/p>
-&lt;h3 id="tfherust_encrypteduint14type">TfheRust_EncryptedUInt14Type&lt;/h3>
+&lt;h3 id="encrypteduint14type">EncryptedUInt14Type&lt;/h3>
 &lt;p>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type.&lt;/p>
 &lt;p>Syntax: &lt;code>!tfhe_rust.eui14&lt;/code>&lt;/p>
-&lt;h3 id="tfherust_encrypteduint16type">TfheRust_EncryptedUInt16Type&lt;/h3>
+&lt;h3 id="encrypteduint16type">EncryptedUInt16Type&lt;/h3>
 &lt;p>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type.&lt;/p>
 &lt;p>Syntax: &lt;code>!tfhe_rust.eui16&lt;/code>&lt;/p>
-&lt;h3 id="tfherust_encrypteduint32type">TfheRust_EncryptedUInt32Type&lt;/h3>
+&lt;h3 id="encrypteduint32type">EncryptedUInt32Type&lt;/h3>
 &lt;p>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type.&lt;/p>
 &lt;p>Syntax: &lt;code>!tfhe_rust.eui32&lt;/code>&lt;/p>
-&lt;h3 id="tfherust_encrypteduint64type">TfheRust_EncryptedUInt64Type&lt;/h3>
+&lt;h3 id="encrypteduint64type">EncryptedUInt64Type&lt;/h3>
 &lt;p>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type.&lt;/p>
 &lt;p>Syntax: &lt;code>!tfhe_rust.eui64&lt;/code>&lt;/p>
-&lt;h3 id="tfherust_encrypteduint128type">TfheRust_EncryptedUInt128Type&lt;/h3>
+&lt;h3 id="encrypteduint128type">EncryptedUInt128Type&lt;/h3>
 &lt;p>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type.&lt;/p>
 &lt;p>Syntax: &lt;code>!tfhe_rust.eui128&lt;/code>&lt;/p>
-&lt;h3 id="tfherust_encrypteduint256type">TfheRust_EncryptedUInt256Type&lt;/h3>
+&lt;h3 id="encrypteduint256type">EncryptedUInt256Type&lt;/h3>
 &lt;p>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type.&lt;/p>
 &lt;p>Syntax: &lt;code>!tfhe_rust.eui256&lt;/code>&lt;/p>
 &lt;h3 id="lookuptabletype">LookupTableType&lt;/h3>
