@@ -28,7 +28,32 @@ past the hook.&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>pre-commit install
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>To run them manually, run&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>pre-commit run --all-files
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div></description></item><item><title>Docs: Contributing to HEIR</title><link>https://heir.dev/docs/contributing/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/contributing/</guid><description>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="creating-a-new-pass">Creating a New Pass&lt;/h2>
+&lt;p>The &lt;code>templates&lt;/code> folder contains Python scripts to create boilerplate for new conversion or (dialect-specific) transform passes.&lt;/p>
+&lt;h3 id="conversion-pass">Conversion Pass&lt;/h3>
+&lt;p>To create a new conversion pass, run a command similar to the following:&lt;/p>
+&lt;pre tabindex="0">&lt;code>python templates/templates.py new_conversion_pass \
+--source_dialect_name=CGGI \
+--source_dialect_namespace=cggi \
+--source_dialect_mnemonic=cggi \
+--target_dialect_name=TfheRust \
+--target_dialect_namespace=tfhe_rust \
+--target_dialect_mnemonic=tfhe_rust
+&lt;/code>&lt;/pre>&lt;p>In order to build the resulting code, you must fix the labeled &lt;code>FIXME&lt;/code>s in the type converter and the op conversion patterns.&lt;/p>
+&lt;h3 id="transform-passes">Transform Passes&lt;/h3>
+&lt;p>To create a transform or rewrite pass that operates on a dialect, run a command similar to the following:&lt;/p>
+&lt;pre tabindex="0">&lt;code>python templates/templates.py new_dialect_transform \
+--pass_name=ForgetSecrets \
+--pass_flag=forget-secrets \
+--dialect_name=Secret \
+--dialect_namespace=secret \
+--force=false
+&lt;/code>&lt;/pre>&lt;p>If the transform does not operate from and to a specific dialect, use&lt;/p>
+&lt;pre tabindex="0">&lt;code>python templates/templates.py new_transform \
+--pass_name=ForgetSecrets \
+--pass_flag=forget-secrets \
+--force=false
+&lt;/code>&lt;/pre></description></item><item><title>Docs: Contributing to HEIR</title><link>https://heir.dev/docs/contributing/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/contributing/</guid><description>
 &lt;p>There are several ways to contribute to HEIR, including:&lt;/p>
 &lt;ul>
 &lt;li>Discussing high-level designs and questions on HEIR&amp;rsquo;s
@@ -39,10 +64,12 @@ past the hook.&lt;/p>
 &lt;a href="https://heir.dev/community/">Working Group meetings&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h2 id="ways-to-contribute">Ways to contribute&lt;/h2>
-&lt;p>We welcome pull requests. Please take a look at issues marked with
-&lt;a href="https://github.com/google/heir/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22">good first issue&lt;/a>
-or
-&lt;a href="https://github.com/google/heir/issues?q=is%3Aissue+is%3Aopen+label%3A%22contributions+welcome%22">contributions welcome&lt;/a>.&lt;/p>
+&lt;p>We welcome pull requests, and have tagged issues for newcomers:&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="https://github.com/google/heir/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22">Good first issue&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://github.com/google/heir/issues?q=is%3Aissue+is%3Aopen+label%3A%22contributions+welcome%22">Contributions welcome&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://github.com/google/heir/labels/research%20synthesis">Research synthesis&lt;/a>: determine what parts of recent FHE research papers can or should be ported to HEIR.&lt;/li>
+&lt;/ul>
 &lt;p>For new proposals, please open a GitHub
 &lt;a href="https://github.com/google/heir/issues">issue&lt;/a> or start a
 &lt;a href="https://github.com/google/heir/discussions">discussion&lt;/a> for feedback.&lt;/p>
@@ -355,7 +382,18 @@ submit a pull request
 &lt;li>&lt;a href="https://jeremykun.com/2022/12/09/negacyclic-polynomial-multiplication/">Negacyclic Polynomial Multiplication by Jeremy Kun&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://jeremykun.com/2023/02/27/sample-extraction-from-rlwe-to-lwe/">Sample Extraction from RLWE to LWE by Jeremy Kun&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://jeremykun.com/2021/12/11/the-gadget-decomposition-in-fhe/">The Gadget Decomposition in FHE by Jeremy Kun&lt;/a>&lt;/li>
-&lt;/ul></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
+&lt;/ul></description></item><item><title>Blog: HEIR meeting 2023-09-12</title><link>https://heir.dev/blog/2023/09/13/heir-meeting-2023-09-12/</link><pubDate>Wed, 13 Sep 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/09/13/heir-meeting-2023-09-12/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1gOH1V6ORQwJDDo6I4jrDgCqqNFTsfcQbfpdUR6tv_60/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://drive.google.com/file/d/1zFtpBcCCq5d6UD8Nm8r3rfg3sgy-guz7/view?usp=sharing">video
+recording&lt;/a>
+from the HEIR meeting on 2023-09-12.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-07-18</title><link>https://heir.dev/blog/2023/07/18/heir-meeting-2023-07-18/</link><pubDate>Tue, 18 Jul 2023 10:43:16 -0700</pubDate><guid>https://heir.dev/blog/2023/07/18/heir-meeting-2023-07-18/</guid><description>
+&lt;p>The third HEIR meeting was 2023-07-18
+(&lt;a href="https://docs.google.com/document/d/1DXdyUCmevqY8RJI3kM8oO5nWDEITFIVBPIbucONOB-k/edit?usp=sharing">notes&lt;/a>).&lt;/p>
+&lt;p>We decided to schedule future meetings every two weeks, with alternating focus
+on MLIR and Hardware. See the
+&lt;a href="https://heir.dev/community/">meeting calendar&lt;/a> to join.
+(&lt;a href="https://calendar.google.com/calendar/u/0/embed?src=c85ecb3cda4bfb7daa3da95d5aeb19672930501b49d17896e65fa3f963f17a80@group.calendar.google.com&amp;amp;ctz=America/Los_Angeles">direct link to the calendar&lt;/a>)&lt;/p></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;p>The BGV dialect defines the types and operations of the BGV cryptosystem.&lt;/p>
 &lt;h2 id="bgv-attributes">BGV attributes&lt;/h2>
