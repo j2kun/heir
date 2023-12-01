@@ -167,24 +167,6 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
     // Supports ops with countable loop iterations, like affine.for and scf.for,
     // but not scf.while which has multiple associated regions.
     if (auto loop = dyn_cast<LoopLikeOpInterface>(opToDistribute)) {
-      // FIXME: delete, not needed because these come from block arguments of
-      // the generic which are never secret.
-      //
-      // auto iv = loop.getSingleInductionVar();
-      // auto lowerBound = ofrToValue(loop.getSingleLowerBound());
-      // auto upperBound = ofrToValue(loop.getSingleUpperBound());
-      // auto step = ofrToValue(loop.getSingleStep());
-
-      // if ((iv && isa<SecretType>(iv->getType())) ||
-      //     (lowerBound && isa<SecretType>(lowerBound->getType())) ||
-      //     (upperBound && isa<SecretType>(upperBound->getType())) ||
-      //     (step && isa<SecretType>(step->getType()))) {
-      //   opToDistribute.emitOpError()
-      //       << "Found loop-like op with induction variable, step, or bounds
-      //       of "
-      //          "type secret.sercret.\n";
-      // }
-
       // Example:
       //
       //   secret.generic ins(%value : !secret.secret<...>) {
@@ -211,7 +193,6 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
 
       // Before moving the loop out of the generic, connect the loop's operands
       // to the corresponding secret operands (via the block argument number).
-      genericOp->getParentOp()->dump();
       rewriter.startRootUpdate(genericOp);
 
       // Set the op's operands
@@ -231,35 +212,91 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
         arg.setType(operand.getType());
       }
 
+      // There is a slight type conflict here: the loop's iter arg is
+      // secret<index>, but its block argument is just index. Since the
+      // CollapseSecretlessGeneric pattern will resolve this type conflict
+      // later, we leave it as-is here.
+
       opToDistribute.moveBefore(genericOp);
 
       // Now the loop is before the secret generic, but the generic still
       // yields the loop's result (the loop should yield the generic's result)
-      // and the generic still needs to be moved inside the loop.
+      // and the generic's body still needs to be moved inside the loop.
 
-      genericOp->moveBefore(&loop.getLoopRegions()
-                                 .front()
-                                 ->getBlocks()
-                                 .front()
-                                 .getOperations()
-                                 .front());
+      // Before touching the loop body, make a list of all its non-terminator
+      // ops for later moving.
+      auto &loopBodyBlocks = loop.getLoopRegions().front()->getBlocks();
+      SmallVector<Operation *> loopBodyOps;
+      for (Operation &op : loopBodyBlocks.begin()->without_terminator()) {
+        loopBodyOps.push_back(&op);
+      }
 
+      // Move the generic op to be the first op of the loop body.
+      genericOp->moveBefore(&loopBodyBlocks.front().getOperations().front());
+
+      // Update the yielded values by the terminators of the two ops' blocks.
       auto yieldedValues = loop.getYieldedValues();
+      genericOp.getBody(0)->getTerminator()->setOperands(yieldedValues);
       auto *terminator = opToDistribute.getRegion(0).front().getTerminator();
+      terminator->setOperands(genericOp.getResults());
+
+      // Update the return type of the loop op to match its terminator.
+      auto resultRange = loop.getLoopResults();
+      if (resultRange.has_value()) {
+        for (auto [result, yielded] :
+             llvm::zip(resultRange.value(), yieldedValues)) {
+          result.setType(yielded.getType());
+        }
+      }
+
+      // Move the old loop body ops into the secret.generic
+      for (auto *op : loopBodyOps) {
+        op->moveBefore(genericOp.getBody(0)->getTerminator());
+      }
+
+      // The ops within the secret generic may still refer to the loop
+      // iter_args, which are not part of of the secret.generic's block. To be
+      // a bit more general, walk the entire generic body, and for any operand
+      // not in the block, add it as an operand to the secret.generic.
+      Block *genericBlock = genericOp.getBody(0);
+      genericBlock->walk([&](Operation *op) {
+        for (Value operand : op->getOperands()) {
+          if (operand.getParentBlock() != genericBlock) {
+            genericOp->insertOperands(genericOp->getNumOperands(), {operand});
+
+            // A secret type needs to have its secret dropped when converted to
+            // a block arg.
+            Type blockArgType = operand.getType();
+            if (auto secretType = dyn_cast<SecretType>(blockArgType)) {
+              blockArgType = secretType.getValueType();
+            }
+            BlockArgument newArg = genericBlock->addArgument(
+                blockArgType, genericBlock->getArguments().back().getLoc());
+            operand.replaceUsesWithIf(newArg, [&](OpOperand &use) {
+              return use.getOwner()->getParentOp() == genericOp;
+            });
+          }
+        }
+      });
+
+      // Finally, ops that came after the original secret.generic may still
+      // refer to a secret.generic result, when now they should refer to the
+      // corresponding result of the loop.
+      for (OpResult genericResult : genericOp.getResults()) {
+        auto correspondingLoopResult =
+            loop.getLoopResults().value()[genericResult.getResultNumber()];
+        genericResult.replaceUsesWithIf(
+            correspondingLoopResult, [&](OpOperand &use) {
+              return use.getOwner()->getParentOp() != loop.getOperation();
+            });
+      }
 
       rewriter.finalizeRootUpdate(genericOp);
-      genericOp->getParentOp()->dump();
-
-      assert(false && "wat");
-
       return;
     }
 
-    // Cast to loop-like interface to assert the induction variables and bounds
-    // are not secret, but iter-args may be.
-
-    // TODO: handle RegionBranchOpInterface (scf.while, scf.if) and potentially
-    // BranchOpInterface (cf.br)
+    // TODO(https://github.com/google/heir/issues/307): handle
+    // RegionBranchOpInterface (scf.while, scf.if).
   }
 
   void splitGenericAroundOp(GenericOp op, Operation &opToDistribute,

@@ -50,7 +50,7 @@ func.func @test_distribute_generic(%value: !secret.secret<i32>, %cond: i1) -> !s
 
 
 // CHECK-LABEL: test_affine_for
-// CHECK-SAME: %[[value:.*]]: !secret.secret<i32>) {
+// CHECK-SAME: %[[value:.*]]: !secret.secret<i32>) -> !secret.secret<i32> {
 func.func @test_affine_for(%value: !secret.secret<i32>) -> !secret.secret<i32> {
   // CHECK-DAG: %[[c1i32:.*]] = arith.constant 1 : i32
   // CHECK-DAG: %[[c1:.*]] = arith.constant 1 : index
@@ -58,12 +58,13 @@ func.func @test_affine_for(%value: !secret.secret<i32>) -> !secret.secret<i32> {
 
   // The for loop takes the secret as iter_arg and returns it
   // CHECK-NEXT: %[[v0:.*]] = scf.for %[[i:.*]] = %[[c1]] to %[[c5]] step %[[c1]]
-  // CHECK-SAME: iter_args(%[[iter_arg:.*]] = %[[value]]) -> !secret.secret<i32> {
+  // CHECK-SAME: iter_args(%[[iter_arg:.*]] = %[[value]])
+  // CHECK-SAME: -> (!secret.secret<i32>) {
 
   // The loop body is a single secret.generic for the add
-  // CHECK-NEXT: %[[g0:.*]] = secret.generic ins(%[[iter_arg]], %[[c1i32]] : !secret.secret<i32>, i32) {
+  // CHECK-NEXT: %[[g0:.*]] = secret.generic ins(%[[c1i32]], %[[iter_arg]] : i32, !secret.secret<i32>) {
   // CHECK-NEXT: ^[[bb0:.*]](%[[clear_iter_arg:.*]]: i32, %[[clear_c1i32:.*]]: i32):
-  // CHECK-NEXT:   %[[g0_op:.*]] = arith.addi %[[clear_iter_arg]], %[[clear_c1i32]] : i32
+  // CHECK-NEXT:   %[[g0_op:.*]] = arith.addi %[[clear_c1i32]], %[[clear_iter_arg]] : i32
   // CHECK-NEXT:   secret.yield %[[g0_op]] : i32
   // CHECK-NEXT: } -> !secret.secret<i32>
 
@@ -71,7 +72,7 @@ func.func @test_affine_for(%value: !secret.secret<i32>) -> !secret.secret<i32> {
   // CHECK-NEXT: scf.yield %[[g0]] : !secret.secret<i32>
   // CHECK-NEXT: }
 
-  // CHECK-NEXT: func.return %[[v0]]
+  // CHECK-NEXT: return %[[v0]]
   %Z = secret.generic
     ins(%value : !secret.secret<i32>) {
     ^bb0(%clear_value: i32):
@@ -79,13 +80,12 @@ func.func @test_affine_for(%value: !secret.secret<i32>) -> !secret.secret<i32> {
       %c1 = arith.constant 1 : index
       %c5 = arith.constant 5 : index
       %1 = scf.for %i = %c1 to %c5 step %c1 iter_args(%iter_arg = %clear_value) -> i32 {
-        %2 = arith.addi %iter_arg, %0 : i32
+        %2 = arith.addi %0, %iter_arg : i32
         scf.yield %2 : i32
       }
       secret.yield %1 : i32
     } -> (!secret.secret<i32>)
   func.return %Z : !secret.secret<i32>
 }
-
 
 // FIXME: handle alloc/store/load
