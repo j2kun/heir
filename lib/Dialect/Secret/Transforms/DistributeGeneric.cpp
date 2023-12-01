@@ -22,7 +22,7 @@
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 
-#define DEBUG_TYPE "secret.distribute-generic"
+#define DEBUG_TYPE "distribute-generic"
 
 namespace mlir {
 namespace heir {
@@ -76,6 +76,7 @@ struct CollapseSecretlessGeneric : public OpRewritePattern<GenericOp> {
   }
 };
 
+// FIXME: move this pattern so it can be reused in canonicalization.
 // Remove unused args of a secret.generic op
 //
 // E.g.,
@@ -119,6 +120,35 @@ struct RemoveUnusedGenericArgs : public OpRewritePattern<GenericOp> {
     }
 
     return hasUnusedOps ? success() : failure();
+  }
+};
+
+// FIXME: move this pattern so it can be reused in canonicalization.
+// Remove non-secret args of a secret.generic op, since they can be referenced
+// directly in the enclosing scope.
+struct RemoveNonSecretGenericArgs : public OpRewritePattern<GenericOp> {
+  RemoveNonSecretGenericArgs(mlir::MLIRContext *context)
+      : OpRewritePattern<GenericOp>(context, /*benefit=*/2) {}
+
+  LogicalResult matchAndRewrite(GenericOp op,
+                                PatternRewriter &rewriter) const override {
+    bool deletedAny = false;
+    for (OpOperand &operand : op->getOpOperands()) {
+      if (!isa<SecretType>(operand.get().getType())) {
+        deletedAny = true;
+        Block *body = op.getBody();
+        BlockArgument correspondingArg =
+            body->getArgument(operand.getOperandNumber());
+
+        rewriter.replaceAllUsesWith(correspondingArg, operand.get());
+        rewriter.updateRootInPlace(op, [&]() {
+          body->eraseArgument(operand.getOperandNumber());
+          op.getOperation()->eraseOperand(operand.getOperandNumber());
+        });
+      }
+    }
+
+    return deletedAny ? success() : failure();
   }
 };
 
@@ -195,15 +225,25 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       // to the corresponding secret operands (via the block argument number).
       rewriter.startRootUpdate(genericOp);
 
-      // Set the op's operands
-      MutableArrayRef<OpOperand> operands = opToDistribute.getOpOperands();
-      for (OpOperand &operand : operands) {
-        assert(
-            isa<BlockArgument>(operand.get()) &&
-            "loop init values must be block arguments of the secret.generic");
-        BlockArgument initArg = cast<BlockArgument>(operand.get());
-        operand.set(genericOp.getOperand(initArg.getArgNumber()));
+      LLVM_DEBUG({
+        llvm::dbgs() << "\n\ngeneric op before updating loop operands\n\n";
+        genericOp.dump();
+      });
+
+      // Set the loop op's operands that came from the secret generic block
+      // to be the the corresponding operand of the generic op.
+      for (OpOperand &operand : opToDistribute.getOpOperands()) {
+        BlockArgument blockArg = dyn_cast<BlockArgument>(operand.get());
+        if (blockArg && blockArg.getOwner() == genericOp.getBody()) {
+          BlockArgument initArg = cast<BlockArgument>(operand.get());
+          operand.set(genericOp.getOperand(initArg.getArgNumber()));
+        }
       }
+
+      LLVM_DEBUG({
+        llvm::dbgs() << "\n\ngeneric op after updating loop operands:\n\n";
+        genericOp.dump();
+      });
 
       // Set the op's region iter arg types, which need to match the possibly
       // new type of the operands modified above
@@ -212,12 +252,22 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
         arg.setType(operand.getType());
       }
 
+      LLVM_DEBUG({
+        llvm::dbgs() << "\n\ngeneric op after updating region iter args\n\n";
+        genericOp.dump();
+      });
+
       // There is a slight type conflict here: the loop's iter arg is
       // secret<index>, but its block argument is just index. Since the
       // CollapseSecretlessGeneric pattern will resolve this type conflict
       // later, we leave it as-is here.
 
       opToDistribute.moveBefore(genericOp);
+
+      LLVM_DEBUG({
+        llvm::dbgs() << "\n\nparent after moving loop out of generic body:\n\n";
+        genericOp->getParentOp()->dump();
+      });
 
       // Now the loop is before the secret generic, but the generic still
       // yields the loop's result (the loop should yield the generic's result)
@@ -234,6 +284,11 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       // Move the generic op to be the first op of the loop body.
       genericOp->moveBefore(&loopBodyBlocks.front().getOperations().front());
 
+      LLVM_DEBUG({
+        llvm::dbgs() << "\n\nloop after moving generic into the loop body:\n\n";
+        opToDistribute.dump();
+      });
+
       // Update the yielded values by the terminators of the two ops' blocks.
       auto yieldedValues = loop.getYieldedValues();
       genericOp.getBody(0)->getTerminator()->setOperands(yieldedValues);
@@ -245,6 +300,11 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
         terminator->setOperands(genericOp.getResults());
       }
 
+      LLVM_DEBUG({
+        llvm::dbgs() << "\n\nloop after updating yielded values:\n\n";
+        opToDistribute.dump();
+      });
+
       // Update the return type of the loop op to match its terminator.
       auto resultRange = loop.getLoopResults();
       if (resultRange.has_value()) {
@@ -254,10 +314,36 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
         }
       }
 
+      LLVM_DEBUG({
+        llvm::dbgs() << "\n\nloop after updating return types:\n\n";
+        opToDistribute.dump();
+      });
+
       // Move the old loop body ops into the secret.generic
       for (auto *op : loopBodyOps) {
         op->moveBefore(genericOp.getBody(0)->getTerminator());
       }
+
+      LLVM_DEBUG({
+        llvm::dbgs() << "\n\nloop after moving old loop body ops into the "
+                        "secret.generic:\n\n";
+        opToDistribute.dump();
+      });
+
+      // One of the secret.generic's inputs may still refer to the loop's
+      // iter_args initializer, when now it should refer to the iter_arg itself.
+      for (OpOperand &operand : genericOp->getOpOperands()) {
+        for (auto [iterArg, iterArgInit] :
+             llvm::zip(loop.getRegionIterArgs(), loop.getInits())) {
+          if (operand.get() == iterArgInit) operand.set(iterArg);
+        }
+      }
+
+      LLVM_DEBUG({
+        llvm::dbgs()
+            << "\n\nloop after updating secret.generic to use iter_arg:\n\n";
+        opToDistribute.dump();
+      });
 
       // The ops within the secret generic may still refer to the loop
       // iter_args, which are not part of of the secret.generic's block. To be
@@ -267,26 +353,29 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       genericBlock->walk([&](Operation *op) {
         for (Value operand : op->getOperands()) {
           if (operand.getParentBlock() != genericBlock) {
-            genericOp->insertOperands(genericOp->getNumOperands(), {operand});
-
-            // A secret type needs to have its secret dropped when converted to
-            // a block arg.
-            Type blockArgType = operand.getType();
-            if (auto secretType = dyn_cast<SecretType>(blockArgType)) {
-              blockArgType = secretType.getValueType();
+            if (isa<SecretType>(operand.getType())) {
+              // Find the secret.generic operand that corresponds to this
+              // operand
+              int operandNumber =
+                  std::find(genericOp.getOperands().begin(),
+                            genericOp.getOperands().end(), operand) -
+                  genericOp.getOperands().begin();
+              assert(operandNumber < genericOp.getNumOperands() &&
+                     "operand not found in secret.generic");
+              BlockArgument blockArg = genericBlock->getArgument(operandNumber);
+              operand.replaceUsesWithIf(blockArg, [&](OpOperand &use) {
+                return use.getOwner()->getParentOp() == genericOp;
+              });
             }
-            BlockArgument newArg = genericBlock->addArgument(
-                blockArgType, genericBlock->getArguments().back().getLoc());
-            operand.replaceUsesWithIf(newArg, [&](OpOperand &use) {
-              return use.getOwner()->getParentOp() == genericOp;
-            });
           }
         }
       });
 
-      if (loop.getOperation()->getName().getStringRef() == "affine.for") {
-        loop->getParentOp()->dump();
-      }
+      LLVM_DEBUG({
+        llvm::dbgs() << "\n\nloop after updating op args to use plaintext "
+                        "analogues:\n\n";
+        opToDistribute.dump();
+      });
 
       // Finally, ops that came after the original secret.generic may still
       // refer to a secret.generic result, when now they should refer to the
@@ -302,9 +391,12 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
         }
       }
 
-      if (loop.getOperation()->getName().getStringRef() == "affine.for") {
-        loop->getParentOp()->dump();
-      }
+      LLVM_DEBUG({
+        llvm::dbgs()
+            << "\n\nloop after updating potential downstream users\n\n";
+        opToDistribute.getParentOp()->dump();
+      });
+
       rewriter.finalizeRootUpdate(genericOp);
       return;
     }
@@ -320,27 +412,37 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
 
   void splitGenericAfterOp(GenericOp op, Operation &opToDistribute,
                            PatternRewriter &rewriter) const {
+    LLVM_DEBUG({
+      opToDistribute.emitRemark() << " splitting generic after this op\n";
+    });
     Block *body = op.getBody();
-    // The inputs to the op are generic op's block arguments (cleartext
-    // values), and they need to change to be the corresponding generic op's
-    // normal operands (maybe secret values).
+    // The inputs to the op may be in the generic op's block arguments
+    // (cleartext values with corresponding secrets), and they need to change
+    // to be the corresponding generic op's normal operands (maybe secret
+    // values).
     SmallVector<Value> newInputs;
-    // The indices of the new inputs in the original block argument list
-    SmallVector<unsigned> newInputIndices;
     for (Value val : opToDistribute.getOperands()) {
       int index = std::find(body->getArguments().begin(),
                             body->getArguments().end(), val) -
                   body->getArguments().begin();
-      newInputIndices.push_back(index);
-      newInputs.push_back(op.getOperand(index));
+      if (index == body->getArguments().size()) {
+        // The operand is not a block argument, so it must be referencing the
+        // ambient scope.
+        newInputs.push_back(val);
+      } else {
+        newInputs.push_back(op.getOperand(index));
+      }
     }
 
-    // Result types are secret versions of the results of the block's only op
+    // Result types are secret versions of the results of the op, since the
+    // secret will yield all of this op's results immediately.
     SmallVector<Type> newResultTypes;
     for (Type ty : opToDistribute.getResultTypes()) {
       newResultTypes.push_back(SecretType::get(ty));
     }
 
+    // We may be adding non-secret inputs to the generic, but later patterns
+    // will clean this up.
     auto newGeneric = rewriter.create<GenericOp>(
         op.getLoc(), newInputs, newResultTypes,
         [&](OpBuilder &b, Location loc, ValueRange blockArguments) {
@@ -440,6 +542,7 @@ struct DistributeGeneric
 
     patterns.add<SplitGeneric>(context, opsToDistribute);
     patterns.add<CollapseSecretlessGeneric, RemoveUnusedGenericArgs>(context);
+    patterns.add<RemoveNonSecretGenericArgs>(context);
     // TODO(https://github.com/google/heir/issues/170): add a pattern that
     // distributes generic through a single op containing one or more regions.
     (void)applyPatternsAndFoldGreedily(getOperation(), std::move(patterns));
