@@ -237,8 +237,13 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       // Update the yielded values by the terminators of the two ops' blocks.
       auto yieldedValues = loop.getYieldedValues();
       genericOp.getBody(0)->getTerminator()->setOperands(yieldedValues);
-      auto *terminator = opToDistribute.getRegion(0).front().getTerminator();
-      terminator->setOperands(genericOp.getResults());
+      // An affine.for op might not have a yielded value, and only manipulate
+      // memrefs in its body. In this case, both the secret.generic and the
+      // affine.for will yield nothing.
+      if (!yieldedValues.empty()) {
+        auto *terminator = opToDistribute.getRegion(0).front().getTerminator();
+        terminator->setOperands(genericOp.getResults());
+      }
 
       // Update the return type of the loop op to match its terminator.
       auto resultRange = loop.getLoopResults();
@@ -279,18 +284,27 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
         }
       });
 
-      // Finally, ops that came after the original secret.generic may still
-      // refer to a secret.generic result, when now they should refer to the
-      // corresponding result of the loop.
-      for (OpResult genericResult : genericOp.getResults()) {
-        auto correspondingLoopResult =
-            loop.getLoopResults().value()[genericResult.getResultNumber()];
-        genericResult.replaceUsesWithIf(
-            correspondingLoopResult, [&](OpOperand &use) {
-              return use.getOwner()->getParentOp() != loop.getOperation();
-            });
+      if (loop.getOperation()->getName().getStringRef() == "affine.for") {
+        loop->getParentOp()->dump();
       }
 
+      // Finally, ops that came after the original secret.generic may still
+      // refer to a secret.generic result, when now they should refer to the
+      // corresponding result of the loop, if the loop has results.
+      for (OpResult genericResult : genericOp.getResults()) {
+        if (loop.getLoopResults().has_value()) {
+          auto correspondingLoopResult =
+              loop.getLoopResults().value()[genericResult.getResultNumber()];
+          genericResult.replaceUsesWithIf(
+              correspondingLoopResult, [&](OpOperand &use) {
+                return use.getOwner()->getParentOp() != loop.getOperation();
+              });
+        }
+      }
+
+      if (loop.getOperation()->getName().getStringRef() == "affine.for") {
+        loop->getParentOp()->dump();
+      }
       rewriter.finalizeRootUpdate(genericOp);
       return;
     }

@@ -49,9 +49,9 @@ func.func @test_distribute_generic(%value: !secret.secret<i32>, %cond: i1) -> !s
 }
 
 
-// CHECK-LABEL: test_affine_for
+// CHECK-LABEL: test_scf_for
 // CHECK-SAME: %[[value:.*]]: !secret.secret<i32>) -> !secret.secret<i32> {
-func.func @test_affine_for(%value: !secret.secret<i32>) -> !secret.secret<i32> {
+func.func @test_scf_for(%value: !secret.secret<i32>) -> !secret.secret<i32> {
   // CHECK-DAG: %[[c1i32:.*]] = arith.constant 1 : i32
   // CHECK-DAG: %[[c1:.*]] = arith.constant 1 : index
   // CHECK-DAG: %[[c5:.*]] = arith.constant 5 : index
@@ -88,4 +88,20 @@ func.func @test_affine_for(%value: !secret.secret<i32>) -> !secret.secret<i32> {
   func.return %Z : !secret.secret<i32>
 }
 
-// FIXME: handle alloc/store/load
+// CHECK-LABEL: test_affine_for
+// CHECK-SAME: %[[value:.*]]: !secret.secret<i32>
+// CHECK-SAME: %[[data:.*]]: memref<10xi32>
+func.func @test_affine_for(%value: !secret.secret<i32>, %data: memref<10xi32>) -> !secret.secret<memref<10xi32>> {
+  %Z = secret.generic
+    ins(%value, %data : !secret.secret<i32>, memref<10xi32>) {
+    ^bb0(%clear_value: i32, %clear_data : memref<10xi32>):
+      %0 = arith.constant 1 : i32
+      affine.for %i = 0 to 10 {
+        %2 = affine.load %clear_data[%i] : memref<10xi32>
+        %3 = arith.addi %2, %clear_value : i32
+        affine.store %3, %clear_data[%i] : memref<10xi32>
+      }
+      secret.yield %clear_data : memref<10xi32>
+    } -> (!secret.secret<memref<10xi32>>)
+  func.return %Z : !secret.secret<memref<10xi32>>
+}
