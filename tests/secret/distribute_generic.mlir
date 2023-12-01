@@ -49,5 +49,20 @@ func.func @test_distribute_generic(%value: !secret.secret<i32>, %cond: i1) -> !s
 }
 
 
-// TODO(https://github.com/google/heir/issues/170): test
-// scf.if, affine.for.
+// CHECK-LABEL: test_affine_for
+// CHECK-SAME: %[[value:.*]]: !secret.secret<i32>) {
+func.func @test_affine_for(%value: !secret.secret<i32>) {
+  secret.generic
+    ins(%value : !secret.secret<i32>) {
+    ^bb0(%clear_value: i32):
+      affine.for %i = 0 to 10 {
+        %c1 = arith.constant 1 : i32
+        %0 = arith.addi %clear_value, %c1 : i32
+      }
+      secret.yield
+    } -> ()
+  func.return
+}
+
+
+// FIXME: handle alloc/store/load
