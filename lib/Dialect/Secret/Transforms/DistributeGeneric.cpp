@@ -225,11 +225,6 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       // to the corresponding secret operands (via the block argument number).
       rewriter.startRootUpdate(genericOp);
 
-      LLVM_DEBUG({
-        llvm::dbgs() << "\n\ngeneric op before updating loop operands\n\n";
-        genericOp.dump();
-      });
-
       // Set the loop op's operands that came from the secret generic block
       // to be the the corresponding operand of the generic op.
       for (OpOperand &operand : opToDistribute.getOpOperands()) {
@@ -240,11 +235,6 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
         }
       }
 
-      LLVM_DEBUG({
-        llvm::dbgs() << "\n\ngeneric op after updating loop operands:\n\n";
-        genericOp.dump();
-      });
-
       // Set the op's region iter arg types, which need to match the possibly
       // new type of the operands modified above
       for (auto [arg, operand] :
@@ -252,23 +242,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
         arg.setType(operand.getType());
       }
 
-      LLVM_DEBUG({
-        llvm::dbgs() << "\n\ngeneric op after updating region iter args\n\n";
-        genericOp.dump();
-      });
-
-      // There is a slight type conflict here: the loop's iter arg is
-      // secret<index>, but its block argument is just index. Since the
-      // CollapseSecretlessGeneric pattern will resolve this type conflict
-      // later, we leave it as-is here.
-
       opToDistribute.moveBefore(genericOp);
-
-      LLVM_DEBUG({
-        llvm::dbgs() << "\n\nparent after moving loop out of generic body:\n\n";
-        genericOp->getParentOp()->dump();
-      });
-
       // Now the loop is before the secret generic, but the generic still
       // yields the loop's result (the loop should yield the generic's result)
       // and the generic's body still needs to be moved inside the loop.
@@ -284,11 +258,6 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       // Move the generic op to be the first op of the loop body.
       genericOp->moveBefore(&loopBodyBlocks.front().getOperations().front());
 
-      LLVM_DEBUG({
-        llvm::dbgs() << "\n\nloop after moving generic into the loop body:\n\n";
-        opToDistribute.dump();
-      });
-
       // Update the yielded values by the terminators of the two ops' blocks.
       auto yieldedValues = loop.getYieldedValues();
       genericOp.getBody(0)->getTerminator()->setOperands(yieldedValues);
@@ -300,11 +269,6 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
         terminator->setOperands(genericOp.getResults());
       }
 
-      LLVM_DEBUG({
-        llvm::dbgs() << "\n\nloop after updating yielded values:\n\n";
-        opToDistribute.dump();
-      });
-
       // Update the return type of the loop op to match its terminator.
       auto resultRange = loop.getLoopResults();
       if (resultRange.has_value()) {
@@ -314,21 +278,10 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
         }
       }
 
-      LLVM_DEBUG({
-        llvm::dbgs() << "\n\nloop after updating return types:\n\n";
-        opToDistribute.dump();
-      });
-
       // Move the old loop body ops into the secret.generic
       for (auto *op : loopBodyOps) {
         op->moveBefore(genericOp.getBody(0)->getTerminator());
       }
-
-      LLVM_DEBUG({
-        llvm::dbgs() << "\n\nloop after moving old loop body ops into the "
-                        "secret.generic:\n\n";
-        opToDistribute.dump();
-      });
 
       // One of the secret.generic's inputs may still refer to the loop's
       // iter_args initializer, when now it should refer to the iter_arg itself.
@@ -338,12 +291,6 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
           if (operand.get() == iterArgInit) operand.set(iterArg);
         }
       }
-
-      LLVM_DEBUG({
-        llvm::dbgs()
-            << "\n\nloop after updating secret.generic to use iter_arg:\n\n";
-        opToDistribute.dump();
-      });
 
       // The ops within the secret generic may still refer to the loop
       // iter_args, which are not part of of the secret.generic's block. To be
@@ -371,12 +318,6 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
         }
       });
 
-      LLVM_DEBUG({
-        llvm::dbgs() << "\n\nloop after updating op args to use plaintext "
-                        "analogues:\n\n";
-        opToDistribute.dump();
-      });
-
       // Finally, ops that came after the original secret.generic may still
       // refer to a secret.generic result, when now they should refer to the
       // corresponding result of the loop, if the loop has results.
@@ -390,12 +331,6 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
               });
         }
       }
-
-      LLVM_DEBUG({
-        llvm::dbgs()
-            << "\n\nloop after updating potential downstream users\n\n";
-        opToDistribute.getParentOp()->dump();
-      });
 
       rewriter.finalizeRootUpdate(genericOp);
       return;
@@ -482,7 +417,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       return failure();
     }
 
-    Operation *opToDistribute;
+    Operation *opToDistribute = nullptr;
     bool first = true;
     if (opsToDistribute.empty()) {
       opToDistribute = &body->front();
@@ -492,6 +427,8 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
         // affine.for)
         if (std::find(opsToDistribute.begin(), opsToDistribute.end(),
                       op.getName().getStringRef()) != opsToDistribute.end()) {
+          LLVM_DEBUG(llvm::dbgs()
+                     << "Found op to distribute: " << op.getName() << "\n");
           opToDistribute = &op;
           break;
         }
@@ -501,7 +438,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
 
     // Base case: if none of a generic op's member ops are in the list of ops
     // to process, stop.
-    if (!opToDistribute) return failure();
+    if (opToDistribute == nullptr) return failure();
 
     if (numOps == 2 && !opToDistribute->getRegions().empty()) {
       distributeThroughRegionHoldingOp(op, *opToDistribute, rewriter);
