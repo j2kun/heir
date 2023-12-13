@@ -22,7 +22,13 @@ class CGGI_Op<string mnemonic, list<Trait> traits = []> :
 // --- Operations for a gate-bootstrapping API of a CGGI library ---
 
 class CGGI_BinaryGateOp<string mnemonic>
-    : CGGI_Op<mnemonic, [Pure, Commutative, SameOperandsAndResultType]> {
+  : CGGI_Op<mnemonic, [
+    Pure,
+    Commutative,
+    SameOperandsAndResultType,
+    Elementwise,
+    Scalarizable
+]> {
   let arguments = (ins LWECiphertext:$lhs, LWECiphertext:$rhs);
   let results = (outs LWECiphertext:$output);
   // Note: error: type of result #0, named 'output', is not buildable and a buildable type cannot be inferred
@@ -41,7 +47,13 @@ def CGGI_NotOp : CGGI_Op<"not", [Pure, SameOperandsAndResultType, Involution]> {
   let summary = "Logical NOT of two ciphertexts";
 }
 
-class CGGI_LutOp<string mnemonic> : CGGI_Op<mnemonic, [Pure, Commutative, SameOperandsAndResultType]> {
+class CGGI_LutOp<string mnemonic> : CGGI_Op<mnemonic, [
+  Pure,
+  Commutative,
+  SameOperandsAndResultType,
+  Elementwise,
+  Scalarizable
+]> {
   let results = (outs LWECiphertext:$output);
   let assemblyFormat = "`(` operands `)` attr-dict `:` qualified(type($output))" ;
 
