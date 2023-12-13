@@ -3,6 +3,7 @@
 
 #include <vector>
 
+#include "llvm/include/llvm/ADT/ArrayRef.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/DenseMap.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallSet.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
@@ -35,6 +36,10 @@ class Graph {
   // Returns true iff the given vertex has previously been added to the graph
   // using `AddVertex`.
   bool contains(V vertex) { return vertices.contains(vertex); }
+
+  bool empty() { return vertices.empty(); }
+
+  const llvm::SmallSet<V, 4>& getVertices() { return vertices; }
 
   // Returns the edges that point out of the given vertex.
   std::vector<V> edgesOutOf(V vertex) {
@@ -98,6 +103,13 @@ class Graph {
   // Note: this algorithm doesn't optimize for the most "balanced" levels.
   // Algorithms that result in better balancing of nodes across levels include
   // the Coffman-Graham algorithm.
+  //
+  // Possible improvements we could make:
+  //
+  //  - Add a width restriction so that a level has bounded size.
+  //  - Add a compabibility restriction for what operations can be in the same
+  //    level.
+  //
   FailureOr<std::vector<std::vector<V>>> sortGraphByLevels() {
     // Topologically sort the adjacency graph, then reverse it.
     auto result = topologicalSort();

@@ -41,10 +41,14 @@ cc_library(
     ],
     deps = [
         "@heir//include/Dialect/CGGI/Transforms:pass_inc_gen",
+        "@heir//include/Graph",
         "@heir//lib/Dialect/CGGI/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:TensorDialect",
+        "@llvm-project//mlir:Transforms",
     ],
 )
