@@ -1,8 +1,7 @@
 #include <vector>
 
-#include "absl/status/status.h"  // from @com_google_absl
-#include "gmock/gmock.h"         // from @googletest
-#include "gtest/gtest.h"         // from @googletest
+#include "gmock/gmock.h"  // from @googletest
+#include "gtest/gtest.h"  // from @googletest
 #include "include/Graph/Graph.h"
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 
@@ -27,28 +26,27 @@ TEST(LevelSortTest, SimpleGraphLevelSort) {
   // Level 2: node 2, 3
   // Level 3: node 4
 
-  Graph<std::string_view, int> graph;
-  graph.AddVertex("0", 1);
-  graph.AddVertex("1", 1);
-  graph.AddVertex("2", 1);
-  graph.AddVertex("3", 1);
-  graph.AddVertex("4", 1);
-  graph.AddEdge("0", "1");
-  graph.AddEdge("1", "2");
-  graph.AddEdge("1", "3");
-  graph.AddEdge("1", "4");
-  graph.AddEdge("2", "4");
-  graph.AddEdge("3", "4");
+  Graph<int> graph;
+  graph.addVertex(0);
+  graph.addVertex(1);
+  graph.addVertex(2);
+  graph.addVertex(3);
+  graph.addVertex(4);
+  EXPECT_TRUE(graph.addEdge(0, 1));
+  EXPECT_TRUE(graph.addEdge(1, 2));
+  EXPECT_TRUE(graph.addEdge(1, 3));
+  EXPECT_TRUE(graph.addEdge(1, 4));
+  EXPECT_TRUE(graph.addEdge(2, 4));
+  EXPECT_TRUE(graph.addEdge(3, 4));
 
-  auto level_sorted = graph.SortGraphByLevels();
-  EXPECT_TRUE(succeeded(level_sorted));
-  std::vector<std::vector<std::string_view>> level_unwrapped =
-      level_sorted.value();
-  EXPECT_EQ(level_unwrapped.size(), 4);
-  EXPECT_THAT(level_unwrapped[0], UnorderedElementsAre("0"));
-  EXPECT_THAT(level_unwrapped[1], UnorderedElementsAre("1"));
-  EXPECT_THAT(level_unwrapped[2], UnorderedElementsAre("2", "3"));
-  EXPECT_THAT(level_unwrapped[3], UnorderedElementsAre("4"));
+  auto levelSorted = graph.sortGraphByLevels();
+  EXPECT_TRUE(succeeded(levelSorted));
+  std::vector<std::vector<int>> levelUnwrapped = levelSorted.value();
+  EXPECT_EQ(levelUnwrapped.size(), 4);
+  EXPECT_THAT(levelUnwrapped[0], UnorderedElementsAre(0));
+  EXPECT_THAT(levelUnwrapped[1], UnorderedElementsAre(1));
+  EXPECT_THAT(levelUnwrapped[2], UnorderedElementsAre(2, 3));
+  EXPECT_THAT(levelUnwrapped[3], UnorderedElementsAre(4));
 }
 
 TEST(LevelSortTest, MultiInputGraphLevelSort) {
@@ -69,41 +67,40 @@ TEST(LevelSortTest, MultiInputGraphLevelSort) {
   // Level 5: node 9
   // Level 6: node 10
 
-  Graph<std::string_view, int> graph;
-  graph.AddVertex("0", 1);
-  graph.AddVertex("1", 1);
-  graph.AddVertex("2", 1);
-  graph.AddVertex("3", 1);
-  graph.AddVertex("4", 1);
-  graph.AddVertex("5", 1);
-  graph.AddVertex("6", 1);
-  graph.AddVertex("7", 1);
-  graph.AddVertex("8", 1);
-  graph.AddVertex("9", 1);
-  graph.AddVertex("10", 1);
-  graph.AddEdge("0", "5");
-  graph.AddEdge("1", "6");
-  graph.AddEdge("2", "7");
-  graph.AddEdge("3", "8");
-  graph.AddEdge("4", "9");
-  graph.AddEdge("5", "6");
-  graph.AddEdge("6", "7");
-  graph.AddEdge("7", "8");
-  graph.AddEdge("8", "9");
-  graph.AddEdge("9", "10");
+  Graph<int> graph;
+  graph.addVertex(0);
+  graph.addVertex(1);
+  graph.addVertex(2);
+  graph.addVertex(3);
+  graph.addVertex(4);
+  graph.addVertex(5);
+  graph.addVertex(6);
+  graph.addVertex(7);
+  graph.addVertex(8);
+  graph.addVertex(9);
+  graph.addVertex(10);
+  graph.addEdge(0, 5);
+  graph.addEdge(1, 6);
+  graph.addEdge(2, 7);
+  graph.addEdge(3, 8);
+  graph.addEdge(4, 9);
+  graph.addEdge(5, 6);
+  graph.addEdge(6, 7);
+  graph.addEdge(7, 8);
+  graph.addEdge(8, 9);
+  graph.addEdge(9, 10);
 
-  auto level_sorted = graph.SortGraphByLevels();
-  EXPECT_TRUE(succeeded(level_sorted));
-  std::vector<std::vector<std::string_view>> level_unwrapped =
-      level_sorted.value();
-  EXPECT_EQ(level_unwrapped.size(), 7);
-  EXPECT_THAT(level_unwrapped[0], UnorderedElementsAre("0"));
-  EXPECT_THAT(level_unwrapped[1], UnorderedElementsAre("5", "1"));
-  EXPECT_THAT(level_unwrapped[2], UnorderedElementsAre("2", "6"));
-  EXPECT_THAT(level_unwrapped[3], UnorderedElementsAre("3", "7"));
-  EXPECT_THAT(level_unwrapped[4], UnorderedElementsAre("4", "8"));
-  EXPECT_THAT(level_unwrapped[5], UnorderedElementsAre("9"));
-  EXPECT_THAT(level_unwrapped[6], UnorderedElementsAre("10"));
+  auto levelSorted = graph.sortGraphByLevels();
+  EXPECT_TRUE(succeeded(levelSorted));
+  std::vector<std::vector<int>> levelUnwrapped = levelSorted.value();
+  EXPECT_EQ(levelUnwrapped.size(), 7);
+  EXPECT_THAT(levelUnwrapped[0], UnorderedElementsAre(0));
+  EXPECT_THAT(levelUnwrapped[1], UnorderedElementsAre(5, 1));
+  EXPECT_THAT(levelUnwrapped[2], UnorderedElementsAre(2, 6));
+  EXPECT_THAT(levelUnwrapped[3], UnorderedElementsAre(3, 7));
+  EXPECT_THAT(levelUnwrapped[4], UnorderedElementsAre(4, 8));
+  EXPECT_THAT(levelUnwrapped[5], UnorderedElementsAre(9));
+  EXPECT_THAT(levelUnwrapped[6], UnorderedElementsAre(10));
 }
 
 TEST(LevelSortTest, MultiOutputGraphLevelSort) {
@@ -123,39 +120,37 @@ TEST(LevelSortTest, MultiOutputGraphLevelSort) {
   // Level 4: node 4
   // Level 5: node 5, 6, 7, 8, 9
 
-  Graph<std::string_view, int> graph;
-  graph.AddVertex("0", 1);
-  graph.AddVertex("1", 1);
-  graph.AddVertex("2", 1);
-  graph.AddVertex("3", 1);
-  graph.AddVertex("4", 1);
-  graph.AddVertex("5", 1);
-  graph.AddVertex("6", 1);
-  graph.AddVertex("7", 1);
-  graph.AddVertex("8", 1);
-  graph.AddVertex("9", 1);
-  graph.AddEdge("0", "1");
-  graph.AddEdge("1", "2");
-  graph.AddEdge("2", "3");
-  graph.AddEdge("3", "4");
-  graph.AddEdge("4", "5");
-  graph.AddEdge("4", "6");
-  graph.AddEdge("1", "9");
-  graph.AddEdge("2", "8");
-  graph.AddEdge("3", "7");
+  Graph<int> graph;
+  graph.addVertex(0);
+  graph.addVertex(1);
+  graph.addVertex(2);
+  graph.addVertex(3);
+  graph.addVertex(4);
+  graph.addVertex(5);
+  graph.addVertex(6);
+  graph.addVertex(7);
+  graph.addVertex(8);
+  graph.addVertex(9);
+  graph.addEdge(0, 1);
+  graph.addEdge(1, 2);
+  graph.addEdge(2, 3);
+  graph.addEdge(3, 4);
+  graph.addEdge(4, 5);
+  graph.addEdge(4, 6);
+  graph.addEdge(1, 9);
+  graph.addEdge(2, 8);
+  graph.addEdge(3, 7);
 
-  auto level_sorted = graph.SortGraphByLevels();
-  EXPECT_TRUE(succeeded(level_sorted));
-  std::vector<std::vector<std::string_view>> level_unwrapped =
-      level_sorted.value();
-  EXPECT_EQ(level_unwrapped.size(), 6);
-  EXPECT_THAT(level_unwrapped[0], UnorderedElementsAre("0"));
-  EXPECT_THAT(level_unwrapped[1], UnorderedElementsAre("1"));
-  EXPECT_THAT(level_unwrapped[2], UnorderedElementsAre("2"));
-  EXPECT_THAT(level_unwrapped[3], UnorderedElementsAre("3"));
-  EXPECT_THAT(level_unwrapped[4], UnorderedElementsAre("4"));
-  EXPECT_THAT(level_unwrapped[5],
-              UnorderedElementsAre("5", "6", "7", "8", "9"));
+  auto levelSorted = graph.sortGraphByLevels();
+  EXPECT_TRUE(succeeded(levelSorted));
+  std::vector<std::vector<int>> levelUnwrapped = levelSorted.value();
+  EXPECT_EQ(levelUnwrapped.size(), 6);
+  EXPECT_THAT(levelUnwrapped[0], UnorderedElementsAre(0));
+  EXPECT_THAT(levelUnwrapped[1], UnorderedElementsAre(1));
+  EXPECT_THAT(levelUnwrapped[2], UnorderedElementsAre(2));
+  EXPECT_THAT(levelUnwrapped[3], UnorderedElementsAre(3));
+  EXPECT_THAT(levelUnwrapped[4], UnorderedElementsAre(4));
+  EXPECT_THAT(levelUnwrapped[5], UnorderedElementsAre(5, 6, 7, 8, 9));
 }
 
 }  // namespace
