@@ -82,16 +82,96 @@
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="bgvdecrypt-heirbgvdecryptop">&lt;code>bgv.decrypt&lt;/code> (heir::bgv::DecryptOp)&lt;/h3>
+&lt;p>&lt;em>Decrypt an encoded plaintext into a BGV ciphertext.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.decrypt` operands attr-dict `:` `(` qualified(type(operands)) `)` `-&amp;gt;` qualified(type(results))
+&lt;/code>&lt;/pre>&lt;h4 id="operands-2">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>secret_key&lt;/code>&lt;/td>
+&lt;td>A secret key for RLWE&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-2">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>A type for RLWE plaintexts&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="bgvencrypt-heirbgvencryptop">&lt;code>bgv.encrypt&lt;/code> (heir::bgv::EncryptOp)&lt;/h3>
+&lt;p>&lt;em>Encrypt an encoded plaintext into a BGV ciphertext.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.encrypt` operands attr-dict `:` `(` qualified(type(operands)) `)` `-&amp;gt;` qualified(type(results))
+&lt;/code>&lt;/pre>&lt;h4 id="operands-3">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>A type for RLWE plaintexts&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>secret_key&lt;/code>&lt;/td>
+&lt;td>A secret key for RLWE&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-3">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="bgvextract-heirbgvextractop">&lt;code>bgv.extract&lt;/code> (heir::bgv::ExtractOp)&lt;/h3>
 &lt;p>&lt;em>Extract the i-th element of a ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.extract` operands attr-dict `:` qualified(type($input)) `,` type($offset)
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.extract` operands attr-dict `:` `(` qualified(type(operands)) `)` `-&amp;gt;` qualified(type(results))
 &lt;/code>&lt;/pre>&lt;p>While this operation is costly to compute in FHE, we represent it so we can
 implement efficient lowerings and folders.&lt;/p>
 &lt;p>This op can be implemented as a plaintext multiplication with a one-hot
-vector and a rotate.&lt;/p>
-&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-2">Operands:&lt;/h4>
+vector and a rotate into the zero-th index.&lt;/p>
+&lt;p>An extraction op&amp;rsquo;s input ciphertext type is asserted to have an &lt;code>underlying_type&lt;/code>
+corresponding to a ranked tensor type, and this op&amp;rsquo;s return type is
+inferred to have the &lt;code>underlying_type&lt;/code> corresponding to the element type of
+that tensor type.&lt;/p>
+&lt;p>Traits: &lt;code>SameOperandsAndResultRings&lt;/code>&lt;/p>
+&lt;h4 id="operands-4">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -110,7 +190,7 @@ vector and a rotate.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-2">Results:&lt;/h4>
+&lt;h4 id="results-4">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -134,7 +214,7 @@ vector and a rotate.&lt;/p>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>to_ring&lt;/code>&lt;/td>&lt;td>::mlir::heir::polynomial::RingAttr&lt;/td>&lt;td>An attribute specifying a ring.&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-3">Operands:&lt;/h4>
+&lt;h4 id="operands-5">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -149,7 +229,7 @@ vector and a rotate.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-3">Results:&lt;/h4>
+&lt;h4 id="results-5">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -170,7 +250,7 @@ vector and a rotate.&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `bgv.mul` operands attr-dict `:` `(` qualified(type(operands)) `)` `-&amp;gt;` qualified(type(results))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>Commutative&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>, &lt;code>SameTypeOperands&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-4">Operands:&lt;/h4>
+&lt;h4 id="operands-6">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -189,7 +269,7 @@ vector and a rotate.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-4">Results:&lt;/h4>
+&lt;h4 id="results-6">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -209,7 +289,7 @@ vector and a rotate.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `bgv.mul_plain` operands attr-dict `:` `(` qualified(type(operands)) `)` `-&amp;gt;` qualified(type(results))
 &lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-5">Operands:&lt;/h4>
+&lt;h4 id="operands-7">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -228,7 +308,7 @@ vector and a rotate.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-5">Results:&lt;/h4>
+&lt;h4 id="results-7">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -249,7 +329,7 @@ vector and a rotate.&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `bgv.negate` operands attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-6">Operands:&lt;/h4>
+&lt;h4 id="operands-8">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -264,7 +344,7 @@ vector and a rotate.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-6">Results:&lt;/h4>
+&lt;h4 id="results-8">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -297,7 +377,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;tr>&lt;td>&lt;code>from_basis&lt;/code>&lt;/td>&lt;td>::mlir::DenseI32ArrayAttr&lt;/td>&lt;td>i32 dense array attribute&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>to_basis&lt;/code>&lt;/td>&lt;td>::mlir::DenseI32ArrayAttr&lt;/td>&lt;td>i32 dense array attribute&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-7">Operands:&lt;/h4>
+&lt;h4 id="operands-9">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -312,7 +392,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-7">Results:&lt;/h4>
+&lt;h4 id="results-9">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -332,7 +412,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `bgv.rotate` operands attr-dict `:` qualified(type($input)) `,` type($offset)
 &lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-8">Operands:&lt;/h4>
+&lt;h4 id="operands-10">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -351,7 +431,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-8">Results:&lt;/h4>
+&lt;h4 id="results-10">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -372,7 +452,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;pre tabindex="0">&lt;code>operation ::= `bgv.sub` operands attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-9">Operands:&lt;/h4>
+&lt;h4 id="operands-11">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -391,7 +471,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-9">Results:&lt;/h4>
+&lt;h4 id="results-11">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -411,7 +491,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `bgv.sub_plain` operands attr-dict `:` `(` qualified(type(operands)) `)` `-&amp;gt;` qualified(type(results))
 &lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-10">Operands:&lt;/h4>
+&lt;h4 id="operands-12">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -430,7 +510,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-10">Results:&lt;/h4>
+&lt;h4 id="results-12">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -2386,8 +2466,7 @@ unsigned, # dimension
 &lt;ul>
 &lt;li>&lt;code>dimension&lt;/code>: the number of polynomials used in an RLWE sample, analogous
 to LWEParams.dimension.&lt;/li>
-&lt;li>&lt;code>polyDegree&lt;/code>: the degree $N$ of the negacyclic polynomial modulus
-$x^N + 1$.&lt;/li>
+&lt;li>&lt;code>ring&lt;/code>: the polynomial ring to use.&lt;/li>
 &lt;/ul>
 &lt;h4 id="parameters-2">Parameters:&lt;/h4>
 &lt;table>
@@ -3412,7 +3491,8 @@ plaintext before it is encrypted.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>!lwe.rlwe_ciphertext&amp;lt;
 ::mlir::Attribute, # encoding
-RLWEParamsAttr # rlwe_params
+RLWEParamsAttr, # rlwe_params
+Type # underlying_type
 &amp;gt;
 &lt;/code>&lt;/pre>&lt;h4 id="parameters-19">Parameters:&lt;/h4>
 &lt;table>
@@ -3434,6 +3514,11 @@ RLWEParamsAttr # rlwe_params
 &lt;td style="text-align:center">&lt;code>RLWEParamsAttr&lt;/code>&lt;/td>
 &lt;td>&lt;/td>
 &lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">underlying_type&lt;/td>
+&lt;td style="text-align:center">&lt;code>Type&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
 &lt;/tbody>
 &lt;/table>
 &lt;h3 id="rlweplaintexttype">RLWEPlaintextType&lt;/h3>
@@ -3441,7 +3526,8 @@ RLWEParamsAttr # rlwe_params
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>!lwe.rlwe_plaintext&amp;lt;
 ::mlir::Attribute, # encoding
-::mlir::heir::polynomial::RingAttr # ring
+::mlir::heir::polynomial::RingAttr, # ring
+Type # underlying_type
 &amp;gt;
 &lt;/code>&lt;/pre>&lt;h4 id="parameters-20">Parameters:&lt;/h4>
 &lt;table>
@@ -3461,6 +3547,34 @@ RLWEParamsAttr # rlwe_params
 &lt;tr>
 &lt;td style="text-align:center">ring&lt;/td>
 &lt;td style="text-align:center">&lt;code>::mlir::heir::polynomial::RingAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">underlying_type&lt;/td>
+&lt;td style="text-align:center">&lt;code>Type&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="rlwesecretkeytype">RLWESecretKeyType&lt;/h3>
+&lt;p>A secret key for RLWE&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>!lwe.rlwe_secret_key&amp;lt;
+RLWEParamsAttr # rlwe_params
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-21">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">rlwe_params&lt;/td>
+&lt;td style="text-align:center">&lt;code>RLWEParamsAttr&lt;/code>&lt;/td>
 &lt;td>&lt;/td>
 &lt;/tr>
 &lt;/tbody>
@@ -3514,15 +3628,10 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="lwerlwe_encode-heirlwerlweencodeop">&lt;code>lwe.rlwe_encode&lt;/code> (heir::lwe::RLWEEncodeOp)&lt;/h3>
-&lt;p>&lt;em>Encode an integer to yield an RLWE plaintext&lt;/em>&lt;/p>
+&lt;h3 id="lwerlwe_decode-heirlwerlwedecodeop">&lt;code>lwe.rlwe_decode&lt;/code> (heir::lwe::RLWEDecodeOp)&lt;/h3>
+&lt;p>&lt;em>Decode an RLWE plaintext to an underlying type&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lwe.rlwe_encode` $plaintext attr-dict `:` qualified(type($plaintext)) `to` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Encode an integer to yield an RLWE plaintext.&lt;/p>
-&lt;p>This op uses a an encoding attribute to encode the bits of the integer into
-an RLWE plaintext value that can then be encrypted.&lt;/p>
-&lt;p>Examples:&lt;/p>
-&lt;pre tabindex="0">&lt;code>%Y = lwe.rlwe_encode %value {encoding = #enc, ring = #ring}: i1 to !lwe.rlwe_plaintext&amp;lt;encoding = #enc, ring = #ring&amp;gt;
+&lt;pre tabindex="0">&lt;code>operation ::= `lwe.rlwe_decode` $input attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -3542,12 +3651,60 @@ an RLWE plaintext value that can then be encrypted.&lt;/p>
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>plaintext&lt;/code>&lt;/td>
-&lt;td>signless-integer-like&lt;/td>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>A type for RLWE plaintexts&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
 &lt;h4 id="results-1">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>signless-integer-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="lwerlwe_encode-heirlwerlweencodeop">&lt;code>lwe.rlwe_encode&lt;/code> (heir::lwe::RLWEEncodeOp)&lt;/h3>
+&lt;p>&lt;em>Encode an integer to yield an RLWE plaintext&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `lwe.rlwe_encode` $input attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
+&lt;/code>&lt;/pre>&lt;p>Encode an integer to yield an RLWE plaintext.&lt;/p>
+&lt;p>This op uses a an encoding attribute to encode the bits of the integer into
+an RLWE plaintext value that can then be encrypted.&lt;/p>
+&lt;p>Examples:&lt;/p>
+&lt;pre tabindex="0">&lt;code>%Y = lwe.rlwe_encode %value {encoding = #enc, ring = #ring}: i1 to !lwe.rlwe_plaintext&amp;lt;encoding = #enc, ring = #ring&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-2">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>encoding&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>An attribute describing encoded RLWE plaintexts via coefficients. or An attribute describing encoded RLWE plaintexts via evaluations at fixed points. or An attribute describing encoded RLWE plaintexts via the rounded inverse canonical embedding.&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>ring&lt;/code>&lt;/td>&lt;td>::mlir::heir::polynomial::RingAttr&lt;/td>&lt;td>An attribute specifying a ring.&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-2">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>signless-integer-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-2">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -3569,12 +3726,12 @@ an RLWE plaintext value that can then be encrypted.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-2">Attributes:&lt;/h4>
+&lt;h4 id="attributes-3">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>params&lt;/code>&lt;/td>&lt;td>::mlir::heir::lwe::LWEParamsAttr&lt;/td>&lt;td>&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-2">Operands:&lt;/h4>
+&lt;h4 id="operands-3">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -3589,7 +3746,7 @@ an RLWE plaintext value that can then be encrypted.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-2">Results:&lt;/h4>
+&lt;h4 id="results-3">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4337,7 +4494,7 @@ are polynomial addition and multiplication performed with reductions modulo
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h3 id="polynomialattr">PolynomialAttr&lt;/h3>
 &lt;p>An attribute containing a single-variable polynomial.&lt;/p>
-&lt;p>#poly = #polynomial.poly&amp;lt;x**1024 + 1&amp;gt;&lt;/p>
+&lt;p>#poly = #_polynomial.polynomial&amp;lt;x**1024 + 1&amp;gt;&lt;/p>
 &lt;h4 id="parameters">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -4362,7 +4519,7 @@ coefficients, $\mathbb{Z}/n\mathbb{Z}[x] / (p(x))$.&lt;/p>
 &lt;p>&lt;code>cmod&lt;/code> is the coefficient modulus $n$, and &lt;code>ideal&lt;/code> is the ring ideal
 $(p(x))$. Because all ideals in a single-variable polynomial ring are
 principal, the ideal is defined by a single polynomial.&lt;/p>
-&lt;p>#ring = #polynomial.ring&amp;lt;cmod=1234, ideal=#polynomial.polynomial&amp;lt;x**1024 + 1&amp;raquo;&lt;/p>
+&lt;p>#ring = #_polynomial.ring&amp;lt;cmod=1234, ideal=#polynomial.polynomial&amp;lt;x**1024 + 1&amp;raquo;&lt;/p>
 &lt;h4 id="parameters-1">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -5093,7 +5250,7 @@ declarations, &lt;code>vector&amp;lt;0x42xi32&amp;gt;&lt;/code> is invalid becau
 &lt;h3 id="polynomialtype">PolynomialType&lt;/h3>
 &lt;p>An element of a polynomial quotient ring&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>!polynomial.polynomial&amp;lt;
+&lt;pre tabindex="0">&lt;code>!_polynomial.polynomial&amp;lt;
 ::mlir::heir::polynomial::RingAttr, # ring
 Attribute # encoding
 &amp;gt;
@@ -5122,10 +5279,10 @@ Attribute # encoding
 &lt;/table>
 &lt;h2 id="polynomial-ops">Polynomial ops&lt;/h2>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h3 id="polynomialadd-heirpolynomialaddop">&lt;code>polynomial.add&lt;/code> (heir::polynomial::AddOp)&lt;/h3>
+&lt;h3 id="_polynomialadd-heirpolynomialaddop">&lt;code>_polynomial.add&lt;/code> (heir::polynomial::AddOp)&lt;/h3>
 &lt;p>&lt;em>Addition operation between polynomials.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `polynomial.add` `(` operands `)` attr-dict `:` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `_polynomial.add` `(` operands `)` attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -5163,10 +5320,10 @@ Attribute # encoding
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="polynomialconstant-heirpolynomialconstantop">&lt;code>polynomial.constant&lt;/code> (heir::polynomial::ConstantOp)&lt;/h3>
+&lt;h3 id="_polynomialconstant-heirpolynomialconstantop">&lt;code>_polynomial.constant&lt;/code> (heir::polynomial::ConstantOp)&lt;/h3>
 &lt;p>&lt;em>Define a constant polynomial via an attribute.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `polynomial.constant` $input attr-dict `:` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `_polynomial.constant` $input attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -5190,10 +5347,10 @@ Attribute # encoding
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="polynomialfrom_tensor-heirpolynomialfromtensorop">&lt;code>polynomial.from_tensor&lt;/code> (heir::polynomial::FromTensorOp)&lt;/h3>
+&lt;h3 id="_polynomialfrom_tensor-heirpolynomialfromtensorop">&lt;code>_polynomial.from_tensor&lt;/code> (heir::polynomial::FromTensorOp)&lt;/h3>
 &lt;p>&lt;em>Creates a polynomial from integer coefficients stored in a tensor.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `polynomial.from_tensor` $input attr-dict `:` type($input) `-&amp;gt;` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `_polynomial.from_tensor` $input attr-dict `:` type($input) `-&amp;gt;` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>&lt;code>polynomial.from_tensor&lt;/code> creates a polynomial value from a tensor of coefficients.
 The input tensor must list the coefficients in degree-increasing order.&lt;/p>
 &lt;p>The input one-dimensional tensor may have size at most the degree of the
@@ -5232,10 +5389,10 @@ all higher-degree terms have coefficient zero.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="polynomialintt-heirpolynomialinttop">&lt;code>polynomial.intt&lt;/code> (heir::polynomial::INTTOp)&lt;/h3>
+&lt;h3 id="_polynomialintt-heirpolynomialinttop">&lt;code>_polynomial.intt&lt;/code> (heir::polynomial::INTTOp)&lt;/h3>
 &lt;p>&lt;em>Computes the reverse integer Number Theoretic Transform (NTT).&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `polynomial.intt` $input attr-dict `:` qualified(type($input)) `-&amp;gt;` type($output)
+&lt;pre tabindex="0">&lt;code>operation ::= `_polynomial.intt` $input attr-dict `:` qualified(type($input)) `-&amp;gt;` type($output)
 &lt;/code>&lt;/pre>&lt;p>&lt;code>polynomial.intt&lt;/code> computes the reverse integer Number Theoretic Transform
 (INTT) on the input tensor. This is the inverse operation of the
 &lt;code>polynomial.ntt&lt;/code> operation.&lt;/p>
@@ -5276,10 +5433,10 @@ encoding attribute of the tensor.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="polynomialleading_term-heirpolynomialleadingtermop">&lt;code>polynomial.leading_term&lt;/code> (heir::polynomial::LeadingTermOp)&lt;/h3>
+&lt;h3 id="_polynomialleading_term-heirpolynomialleadingtermop">&lt;code>_polynomial.leading_term&lt;/code> (heir::polynomial::LeadingTermOp)&lt;/h3>
 &lt;p>&lt;em>Compute the leading term of the polynomial.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `polynomial.leading_term` operands attr-dict `:` qualified(type($input)) `-&amp;gt;` `(` type($degree) `,` type($coefficient) `)`
+&lt;pre tabindex="0">&lt;code>operation ::= `_polynomial.leading_term` operands attr-dict `:` qualified(type($input)) `-&amp;gt;` `(` type($degree) `,` type($coefficient) `)`
 &lt;/code>&lt;/pre>&lt;p>The degree of a polynomial is the largest $k$ for which the coefficient
 $a_k$ of $x^k$ is nonzero. The leading term is the term $a_k x^k$, which
 this op represents as a pair of results.&lt;/p>
@@ -5317,10 +5474,10 @@ this op represents as a pair of results.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="polynomialmonomial_mul-heirpolynomialmonomialmulop">&lt;code>polynomial.monomial_mul&lt;/code> (heir::polynomial::MonomialMulOp)&lt;/h3>
+&lt;h3 id="_polynomialmonomial_mul-heirpolynomialmonomialmulop">&lt;code>_polynomial.monomial_mul&lt;/code> (heir::polynomial::MonomialMulOp)&lt;/h3>
 &lt;p>&lt;em>Multiply a polynomial by a monic monomial.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `polynomial.monomial_mul` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `_polynomial.monomial_mul` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
 &lt;/code>&lt;/pre>&lt;p>In the ring of polynomials mod $x^n - 1$, &lt;code>monomial_mul&lt;/code> can be interpreted
 as a cyclic shift of the coefficients of the polynomial. For some rings,
 this results in optimized lowerings that involve rotations and rescaling
@@ -5360,10 +5517,10 @@ of the coefficients of the input.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="polynomialmonomial-heirpolynomialmonomialop">&lt;code>polynomial.monomial&lt;/code> (heir::polynomial::MonomialOp)&lt;/h3>
+&lt;h3 id="_polynomialmonomial-heirpolynomialmonomialop">&lt;code>_polynomial.monomial&lt;/code> (heir::polynomial::MonomialOp)&lt;/h3>
 &lt;p>&lt;em>Create a polynomial that consists of a single monomial.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `polynomial.monomial` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `_polynomial.monomial` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
 &lt;/code>&lt;/pre>&lt;h4 id="operands-5">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -5398,10 +5555,10 @@ of the coefficients of the input.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="polynomialmul-heirpolynomialmulop">&lt;code>polynomial.mul&lt;/code> (heir::polynomial::MulOp)&lt;/h3>
+&lt;h3 id="_polynomialmul-heirpolynomialmulop">&lt;code>_polynomial.mul&lt;/code> (heir::polynomial::MulOp)&lt;/h3>
 &lt;p>&lt;em>Multiplication operation between polynomials.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `polynomial.mul` `(` operands `)` attr-dict `:` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `_polynomial.mul` `(` operands `)` attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -5439,10 +5596,10 @@ of the coefficients of the input.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="polynomialmul_scalar-heirpolynomialmulscalarop">&lt;code>polynomial.mul_scalar&lt;/code> (heir::polynomial::MulScalarOp)&lt;/h3>
+&lt;h3 id="_polynomialmul_scalar-heirpolynomialmulscalarop">&lt;code>_polynomial.mul_scalar&lt;/code> (heir::polynomial::MulScalarOp)&lt;/h3>
 &lt;p>&lt;em>Multiplication by a scalar of the field.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `polynomial.mul_scalar` operands attr-dict `:` qualified(type($polynomial)) `,` type($scalar)
+&lt;pre tabindex="0">&lt;code>operation ::= `_polynomial.mul_scalar` operands attr-dict `:` qualified(type($polynomial)) `,` type($scalar)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-7">Operands:&lt;/h4>
@@ -5479,10 +5636,10 @@ of the coefficients of the input.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="polynomialntt-heirpolynomialnttop">&lt;code>polynomial.ntt&lt;/code> (heir::polynomial::NTTOp)&lt;/h3>
+&lt;h3 id="_polynomialntt-heirpolynomialnttop">&lt;code>_polynomial.ntt&lt;/code> (heir::polynomial::NTTOp)&lt;/h3>
 &lt;p>&lt;em>Computes point-value tensor representation of a polynomial.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `polynomial.ntt` $input attr-dict `:` qualified(type($input)) `-&amp;gt;` type($output)
+&lt;pre tabindex="0">&lt;code>operation ::= `_polynomial.ntt` $input attr-dict `:` qualified(type($input)) `-&amp;gt;` type($output)
 &lt;/code>&lt;/pre>&lt;p>&lt;code>polynomial.ntt&lt;/code> computes the forward integer Number Theoretic Transform
 (NTT) on the input polynomial. It returns a tensor containing a point-value
 representation of the input polynomial. The output tensor has shape equal to
@@ -5526,10 +5683,10 @@ The choice of primitive root is determined by subsequent lowerings.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="polynomialsub-heirpolynomialsubop">&lt;code>polynomial.sub&lt;/code> (heir::polynomial::SubOp)&lt;/h3>
+&lt;h3 id="_polynomialsub-heirpolynomialsubop">&lt;code>_polynomial.sub&lt;/code> (heir::polynomial::SubOp)&lt;/h3>
 &lt;p>&lt;em>Subtraction operation between polynomials.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `polynomial.sub` `(` operands `)` attr-dict `:` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `_polynomial.sub` `(` operands `)` attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -5567,10 +5724,10 @@ The choice of primitive root is determined by subsequent lowerings.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="polynomialto_tensor-heirpolynomialtotensorop">&lt;code>polynomial.to_tensor&lt;/code> (heir::polynomial::ToTensorOp)&lt;/h3>
+&lt;h3 id="_polynomialto_tensor-heirpolynomialtotensorop">&lt;code>_polynomial.to_tensor&lt;/code> (heir::polynomial::ToTensorOp)&lt;/h3>
 &lt;p>&lt;em>Creates a tensor containing the coefficients of a polynomial.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `polynomial.to_tensor` $input attr-dict `:` qualified(type($input)) `-&amp;gt;` type($output)
+&lt;pre tabindex="0">&lt;code>operation ::= `_polynomial.to_tensor` $input attr-dict `:` qualified(type($input)) `-&amp;gt;` type($output)
 &lt;/code>&lt;/pre>&lt;p>&lt;code>polynomial.to_tensor&lt;/code> creates a tensor value containing the coefficients of the
 input polynomial. The output tensor contains the coefficients in
 degree-increasing order.&lt;/p>
