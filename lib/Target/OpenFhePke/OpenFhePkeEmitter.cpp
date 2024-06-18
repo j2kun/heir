@@ -41,6 +41,7 @@ void registerToOpenFhePkeTranslation() {
       "emit-openfhe-pke",
       "translate the openfhe dialect to C++ code against the OpenFHE pke API",
       [](Operation *op, llvm::raw_ostream &output) {
+        op->getContext()->loadDialect<polynomial::PolynomialDialect>();
         return translateToOpenFhePke(op, output);
       },
       [](DialectRegistry &registry) {
