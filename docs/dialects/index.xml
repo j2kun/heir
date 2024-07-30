@@ -361,82 +361,6 @@ operation computes &lt;code>barret_reduce x = x - floor(x * floor(b / q) / b) * 
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="bgvdecrypt-heirbgvdecryptop">&lt;code>bgv.decrypt&lt;/code> (heir::bgv::DecryptOp)&lt;/h3>
-&lt;p>&lt;em>Decrypt an encoded plaintext into a BGV ciphertext.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.decrypt` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;h4 id="operands-2">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>secret_key&lt;/code>&lt;/td>
-&lt;td>A secret key for RLWE&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-2">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE plaintexts&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="bgvencrypt-heirbgvencryptop">&lt;code>bgv.encrypt&lt;/code> (heir::bgv::EncryptOp)&lt;/h3>
-&lt;p>&lt;em>Encrypt an encoded plaintext into a BGV ciphertext.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.encrypt` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;h4 id="operands-3">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>A type for RLWE plaintexts&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>key&lt;/code>&lt;/td>
-&lt;td>A secret key for RLWE or A public key for RLWE&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-3">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
 &lt;h3 id="bgvextract-heirbgvextractop">&lt;code>bgv.extract&lt;/code> (heir::bgv::ExtractOp)&lt;/h3>
 &lt;p>&lt;em>Extract the i-th element of a ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
@@ -450,7 +374,7 @@ corresponding to a ranked tensor type, and this op&amp;rsquo;s return type is
 inferred to have the &lt;code>underlying_type&lt;/code> corresponding to the element type of
 that tensor type.&lt;/p>
 &lt;p>Traits: &lt;code>SameOperandsAndResultRings&lt;/code>&lt;/p>
-&lt;h4 id="operands-4">Operands:&lt;/h4>
+&lt;h4 id="operands-2">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -469,7 +393,7 @@ that tensor type.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-4">Results:&lt;/h4>
+&lt;h4 id="results-2">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -484,7 +408,7 @@ that tensor type.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="bgvmodulus_switch-heirbgvmodulusswitch">&lt;code>bgv.modulus_switch&lt;/code> (heir::bgv::ModulusSwitch)&lt;/h3>
+&lt;h3 id="bgvmodulus_switch-heirbgvmodulusswitchop">&lt;code>bgv.modulus_switch&lt;/code> (heir::bgv::ModulusSwitchOp)&lt;/h3>
 &lt;p>&lt;em>Lower the modulus level of the ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `bgv.modulus_switch` operands attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
@@ -493,7 +417,7 @@ that tensor type.&lt;/p>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>to_ring&lt;/code>&lt;/td>&lt;td>::mlir::polynomial::RingAttr&lt;/td>&lt;td>an attribute specifying a polynomial ring&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-5">Operands:&lt;/h4>
+&lt;h4 id="operands-3">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -508,7 +432,7 @@ that tensor type.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-5">Results:&lt;/h4>
+&lt;h4 id="results-3">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -529,7 +453,7 @@ that tensor type.&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `bgv.mul` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>Commutative&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>, &lt;code>SameTypeOperands&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-6">Operands:&lt;/h4>
+&lt;h4 id="operands-4">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -548,7 +472,7 @@ that tensor type.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-6">Results:&lt;/h4>
+&lt;h4 id="results-4">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -568,7 +492,7 @@ that tensor type.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `bgv.mul_plain` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-7">Operands:&lt;/h4>
+&lt;h4 id="operands-5">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -587,6 +511,90 @@ that tensor type.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h4 id="results-5">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="bgvnegate-heirbgvnegateop">&lt;code>bgv.negate&lt;/code> (heir::bgv::NegateOp)&lt;/h3>
+&lt;p>&lt;em>Negate the coefficients of the ciphertext.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.negate` operands attr-dict `:` qualified(type($output))
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
+&lt;h4 id="operands-6">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-6">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="bgvrelinearize-heirbgvrelinearizeop">&lt;code>bgv.relinearize&lt;/code> (heir::bgv::RelinearizeOp)&lt;/h3>
+&lt;p>&lt;em>Relinearize the ciphertext.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.relinearize` operands attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
+&lt;/code>&lt;/pre>&lt;p>This op takes integer array attributes &lt;code>from_basis&lt;/code> and &lt;code>to_basis&lt;/code> that are
+used to indicate the key basis from which and to which the ciphertext is
+encrypted against. A ciphertext is canonically encrypted against key basis
+&lt;code>(1, s)&lt;/code>. After a multiplication, its size will increase and the basis will be
+&lt;code>(1, s, s^2)&lt;/code>. The array that represents the key basis is constructed by
+listing the powers of &lt;code>s&lt;/code> at each position of the array. For example, &lt;code>(1, s, s^2)&lt;/code> corresponds to &lt;code>[0, 1, 2]&lt;/code>, while &lt;code>(1, s^2)&lt;/code> corresponds to &lt;code>[0, 2]&lt;/code>.&lt;/p>
+&lt;p>Traits: &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
+&lt;h4 id="attributes-1">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>from_basis&lt;/code>&lt;/td>&lt;td>::mlir::DenseI32ArrayAttr&lt;/td>&lt;td>i32 dense array attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>to_basis&lt;/code>&lt;/td>&lt;td>::mlir::DenseI32ArrayAttr&lt;/td>&lt;td>i32 dense array attribute&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-7">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h4 id="results-7">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -602,12 +610,16 @@ that tensor type.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="bgvnegate-heirbgvnegate">&lt;code>bgv.negate&lt;/code> (heir::bgv::Negate)&lt;/h3>
-&lt;p>&lt;em>Negate the coefficients of the ciphertext.&lt;/em>&lt;/p>
+&lt;h3 id="bgvrotate-heirbgvrotateop">&lt;code>bgv.rotate&lt;/code> (heir::bgv::RotateOp)&lt;/h3>
+&lt;p>&lt;em>Rotate the coefficients of the ciphertext using a Galois automorphism.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.negate` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.rotate` operands attr-dict `:` qualified(type($input))
+&lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
+&lt;h4 id="attributes-2">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>offset&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;/table>
 &lt;h4 id="operands-8">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -638,24 +650,12 @@ that tensor type.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="bgvrelinearize-heirbgvrelinearize">&lt;code>bgv.relinearize&lt;/code> (heir::bgv::Relinearize)&lt;/h3>
-&lt;p>&lt;em>Relinearize the ciphertext.&lt;/em>&lt;/p>
+&lt;h3 id="bgvsub-heirbgvsubop">&lt;code>bgv.sub&lt;/code> (heir::bgv::SubOp)&lt;/h3>
+&lt;p>&lt;em>Subtraction operation between ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.relinearize` operands attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>This op takes integer array attributes &lt;code>from_basis&lt;/code> and &lt;code>to_basis&lt;/code> that are
-used to indicate the key basis from which and to which the ciphertext is
-encrypted against. A ciphertext is canonically encrypted against key basis
-&lt;code>(1, s)&lt;/code>. After a multiplication, its size will increase and the basis will be
-&lt;code>(1, s, s^2)&lt;/code>. The array that represents the key basis is constructed by
-listing the powers of &lt;code>s&lt;/code> at each position of the array. For example, &lt;code>(1, s, s^2)&lt;/code> corresponds to &lt;code>[0, 1, 2]&lt;/code>, while &lt;code>(1, s^2)&lt;/code> corresponds to &lt;code>[0, 2]&lt;/code>.&lt;/p>
-&lt;p>Traits: &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.sub` operands attr-dict `:` qualified(type($output))
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="attributes-1">Attributes:&lt;/h4>
-&lt;table>
-&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>from_basis&lt;/code>&lt;/td>&lt;td>::mlir::DenseI32ArrayAttr&lt;/td>&lt;td>i32 dense array attribute&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>to_basis&lt;/code>&lt;/td>&lt;td>::mlir::DenseI32ArrayAttr&lt;/td>&lt;td>i32 dense array attribute&lt;/td>&lt;/tr>
-&lt;/table>
 &lt;h4 id="operands-9">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -666,7 +666,11 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
 &lt;td>A type for RLWE ciphertexts&lt;/td>
 &lt;/tr>
 &lt;/tbody>
@@ -686,92 +690,12 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="bgvrotate-heirbgvrotateop">&lt;code>bgv.rotate&lt;/code> (heir::bgv::RotateOp)&lt;/h3>
-&lt;p>&lt;em>Rotate the coefficients of the ciphertext using a Galois automorphism.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.rotate` operands attr-dict `:` qualified(type($input))
-&lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="attributes-2">Attributes:&lt;/h4>
-&lt;table>
-&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>offset&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
-&lt;/table>
-&lt;h4 id="operands-10">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-10">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="bgvsub-heirbgvsubop">&lt;code>bgv.sub&lt;/code> (heir::bgv::SubOp)&lt;/h3>
-&lt;p>&lt;em>Subtraction operation between ciphertexts.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.sub` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-11">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-11">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
 &lt;h3 id="bgvsub_plain-heirbgvsubplainop">&lt;code>bgv.sub_plain&lt;/code> (heir::bgv::SubPlainOp)&lt;/h3>
 &lt;p>&lt;em>Subtraction operation between ciphertext-plaintext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `bgv.sub_plain` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-12">Operands:&lt;/h4>
+&lt;h4 id="operands-10">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -790,7 +714,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-12">Results:&lt;/h4>
+&lt;h4 id="results-10">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -1082,13 +1006,43 @@ cannot be multiplied by 16.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="cgginand-heircgginandop">&lt;code>cggi.nand&lt;/code> (heir::cggi::NandOp)&lt;/h3>
-&lt;p>&lt;em>Logical NAND of two ciphertexts.&lt;/em>&lt;/p>
+&lt;h3 id="cggimulti_lut_lincomb-heircggimultilutlincombop">&lt;code>cggi.multi_lut_lincomb&lt;/code> (heir::cggi::MultiLutLinCombOp)&lt;/h3>
+&lt;p>&lt;em>A multi-output version of lut_lincomb with one LUT per output.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `cggi.nand` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.multi_lut_lincomb` operands attr-dict `:` functional-type($inputs, $outputs)
+&lt;/code>&lt;/pre>&lt;p>An op representing multiple lookup tables applied to a shared input, which
+is prepared via a static linear combination. This is equivalent to
+&lt;code>cggi.lut_lincomb&lt;/code>, but where the linear combination is given to multiple
+lookup tables, each producing a separate output.&lt;/p>
+&lt;p>This can be achieved by a special implementation of blind rotate in the CGGI
+scheme. See &lt;a href="https://ieeexplore.ieee.org/document/10413195">AutoHoG&lt;/a>.&lt;/p>
+&lt;p>Example:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#encoding&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#lwe.bit_field_encoding&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">cleartext_start=&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">30&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">cleartext_bitwidth=&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">3&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#params&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#lwe.lwe_params&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">cmod=&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">7917&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">dimension=&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#f57900">ciphertext =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>lwe_ciphertext&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">encoding =&lt;/span> &lt;span style="color:#000">#encoding&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">lwe_params =&lt;/span> &lt;span style="color:#000">#params&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%4&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> cggi&lt;span style="color:#000;font-weight:bold">.&lt;/span>multi_lut_lincomb &lt;span style="color:#000">%c0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%c1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%c2&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%c3&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f57900">coefficients =&lt;/span> array&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">2&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">3&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">2&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;,&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f57900">lookup_tables =&lt;/span> array&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">index&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">68&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">70&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">4&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">8&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>ciphertext&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ciphertext&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ciphertext&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ciphertext&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>ciphertext&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ciphertext&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ciphertext&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>ciphertext&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Represents applying the following LUTs. Performance-wise, this is
+comparable to applying a single LUT to a linear combination.&lt;/p>
+&lt;pre tabindex="0">&lt;code>x = (1 * c0 + 2 * c1 + 3 * c2 + 2 * c3)
+return (
+(68 &amp;gt;&amp;gt; x) &amp;amp; 1,
+(70 &amp;gt;&amp;gt; x) &amp;amp; 1,
+(4 &amp;gt;&amp;gt; x) &amp;amp; 1,
+(8 &amp;gt;&amp;gt; x) &amp;amp; 1
+)
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-3">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>coefficients&lt;/code>&lt;/td>&lt;td>::mlir::DenseI32ArrayAttr&lt;/td>&lt;td>i32 dense array attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>lookup_tables&lt;/code>&lt;/td>&lt;td>::mlir::DenseI32ArrayAttr&lt;/td>&lt;td>i32 dense array attribute&lt;/td>&lt;/tr>
+&lt;/table>
 &lt;h4 id="operands-4">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -1099,12 +1053,8 @@ cannot be multiplied by 16.&lt;/p>
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td style="text-align:center">&lt;code>inputs&lt;/code>&lt;/td>
+&lt;td>variadic of A type for LWE ciphertexts&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1118,15 +1068,15 @@ cannot be multiplied by 16.&lt;/p>
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td style="text-align:center">&lt;code>outputs&lt;/code>&lt;/td>
+&lt;td>variadic of A type for LWE ciphertexts&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="cgginor-heircgginorop">&lt;code>cggi.nor&lt;/code> (heir::cggi::NorOp)&lt;/h3>
-&lt;p>&lt;em>Logical NOR of two ciphertexts.&lt;/em>&lt;/p>
+&lt;h3 id="cgginand-heircgginandop">&lt;code>cggi.nand&lt;/code> (heir::cggi::NandOp)&lt;/h3>
+&lt;p>&lt;em>Logical NAND of two ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `cggi.nor` operands attr-dict `:` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.nand` operands attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -1164,11 +1114,11 @@ cannot be multiplied by 16.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="cgginot-heircgginotop">&lt;code>cggi.not&lt;/code> (heir::cggi::NotOp)&lt;/h3>
-&lt;p>&lt;em>Logical NOT of two ciphertexts&lt;/em>&lt;/p>
+&lt;h3 id="cgginor-heircgginorop">&lt;code>cggi.nor&lt;/code> (heir::cggi::NorOp)&lt;/h3>
+&lt;p>&lt;em>Logical NOR of two ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `cggi.not` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Involution&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.nor` operands attr-dict `:` qualified(type($output))
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-6">Operands:&lt;/h4>
@@ -1181,7 +1131,11 @@ cannot be multiplied by 16.&lt;/p>
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
 &lt;td>ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
@@ -1201,11 +1155,11 @@ cannot be multiplied by 16.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="cggior-heircggiorop">&lt;code>cggi.or&lt;/code> (heir::cggi::OrOp)&lt;/h3>
-&lt;p>&lt;em>Logical OR of two ciphertexts.&lt;/em>&lt;/p>
+&lt;h3 id="cgginot-heircgginotop">&lt;code>cggi.not&lt;/code> (heir::cggi::NotOp)&lt;/h3>
+&lt;p>&lt;em>Logical NOT of two ciphertexts&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `cggi.or` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.not` operands attr-dict `:` qualified(type($output))
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Involution&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-7">Operands:&lt;/h4>
@@ -1218,11 +1172,7 @@ cannot be multiplied by 16.&lt;/p>
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
 &lt;td>ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
@@ -1242,10 +1192,10 @@ cannot be multiplied by 16.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="cggixnor-heircggixnorop">&lt;code>cggi.xnor&lt;/code> (heir::cggi::XNorOp)&lt;/h3>
-&lt;p>&lt;em>Logical XNOR of two ciphertexts.&lt;/em>&lt;/p>
+&lt;h3 id="cggior-heircggiorop">&lt;code>cggi.or&lt;/code> (heir::cggi::OrOp)&lt;/h3>
+&lt;p>&lt;em>Logical OR of two ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `cggi.xnor` operands attr-dict `:` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.or` operands attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -1283,10 +1233,10 @@ cannot be multiplied by 16.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="cggixor-heircggixorop">&lt;code>cggi.xor&lt;/code> (heir::cggi::XorOp)&lt;/h3>
-&lt;p>&lt;em>Logical XOR of two ciphertexts.&lt;/em>&lt;/p>
+&lt;h3 id="cggixnor-heircggixnorop">&lt;code>cggi.xnor&lt;/code> (heir::cggi::XNorOp)&lt;/h3>
+&lt;p>&lt;em>Logical XNOR of two ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `cggi.xor` operands attr-dict `:` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.xnor` operands attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -1310,6 +1260,47 @@ cannot be multiplied by 16.&lt;/p>
 &lt;/tbody>
 &lt;/table>
 &lt;h4 id="results-9">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="cggixor-heircggixorop">&lt;code>cggi.xor&lt;/code> (heir::cggi::XorOp)&lt;/h3>
+&lt;p>&lt;em>Logical XOR of two ciphertexts.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.xor` operands attr-dict `:` qualified(type($output))
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-10">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-10">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -2009,6 +2000,91 @@ be &amp;lsquo;x&amp;rsquo; &amp;ndash; it should be the well-known result.&lt;/p
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>result&lt;/code>&lt;/td>
 &lt;td>signless integer&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="enums">Enums&lt;/h2>
+&lt;h3 id="icmppredicate">ICmpPredicate&lt;/h3>
+&lt;p>hw.icmp comparison predicate&lt;/p>
+&lt;h4 id="cases">Cases:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Symbol&lt;/th>
+&lt;th style="text-align:center">Value&lt;/th>
+&lt;th>String&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">eq&lt;/td>
+&lt;td style="text-align:center">&lt;code>0&lt;/code>&lt;/td>
+&lt;td>eq&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">ne&lt;/td>
+&lt;td style="text-align:center">&lt;code>1&lt;/code>&lt;/td>
+&lt;td>ne&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">slt&lt;/td>
+&lt;td style="text-align:center">&lt;code>2&lt;/code>&lt;/td>
+&lt;td>slt&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">sle&lt;/td>
+&lt;td style="text-align:center">&lt;code>3&lt;/code>&lt;/td>
+&lt;td>sle&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">sgt&lt;/td>
+&lt;td style="text-align:center">&lt;code>4&lt;/code>&lt;/td>
+&lt;td>sgt&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">sge&lt;/td>
+&lt;td style="text-align:center">&lt;code>5&lt;/code>&lt;/td>
+&lt;td>sge&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">ult&lt;/td>
+&lt;td style="text-align:center">&lt;code>6&lt;/code>&lt;/td>
+&lt;td>ult&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">ule&lt;/td>
+&lt;td style="text-align:center">&lt;code>7&lt;/code>&lt;/td>
+&lt;td>ule&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">ugt&lt;/td>
+&lt;td style="text-align:center">&lt;code>8&lt;/code>&lt;/td>
+&lt;td>ugt&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">uge&lt;/td>
+&lt;td style="text-align:center">&lt;code>9&lt;/code>&lt;/td>
+&lt;td>uge&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">ceq&lt;/td>
+&lt;td style="text-align:center">&lt;code>10&lt;/code>&lt;/td>
+&lt;td>ceq&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">cne&lt;/td>
+&lt;td style="text-align:center">&lt;code>11&lt;/code>&lt;/td>
+&lt;td>cne&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">weq&lt;/td>
+&lt;td style="text-align:center">&lt;code>12&lt;/code>&lt;/td>
+&lt;td>weq&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">wne&lt;/td>
+&lt;td style="text-align:center">&lt;code>13&lt;/code>&lt;/td>
+&lt;td>wne&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5147,57 +5223,13 @@ using the shortint parameters and encoding scheme.&lt;/p>
 &lt;p>Syntax: &lt;code>!tfhe_rust.server_key&lt;/code>&lt;/p>
 &lt;h2 id="tfherust-ops">TfheRust ops&lt;/h2>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h3 id="tfhe_rustadd-heirtfhe_rustaddop">&lt;code>tfhe_rust.add&lt;/code> (heir::tfhe_rust::AddOp)&lt;/h3>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.add` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
-&lt;td>The short int server key required to perform homomorphic operations.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
 &lt;h3 id="tfhe_rustapply_lookup_table-heirtfhe_rustapplylookuptableop">&lt;code>tfhe_rust.apply_lookup_table&lt;/code> (heir::tfhe_rust::ApplyLookupTableOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.apply_lookup_table` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-1">Operands:&lt;/h4>
+&lt;h4 id="operands">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5220,51 +5252,7 @@ using the shortint parameters and encoding scheme.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-1">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="tfhe_rustbitand-heirtfhe_rustbitandop">&lt;code>tfhe_rust.bitand&lt;/code> (heir::tfhe_rust::BitAndOp)&lt;/h3>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.bitand` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-2">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
-&lt;td>The short int server key required to perform homomorphic operations.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-2">Results:&lt;/h4>
+&lt;h4 id="results">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5285,7 +5273,7 @@ using the shortint parameters and encoding scheme.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-3">Operands:&lt;/h4>
+&lt;h4 id="operands-1">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5304,7 +5292,7 @@ using the shortint parameters and encoding scheme.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-3">Results:&lt;/h4>
+&lt;h4 id="results-1">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5330,7 +5318,7 @@ using the shortint parameters and encoding scheme.&lt;/p>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>truthTable&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-4">Operands:&lt;/h4>
+&lt;h4 id="operands-2">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5345,7 +5333,7 @@ using the shortint parameters and encoding scheme.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-4">Results:&lt;/h4>
+&lt;h4 id="results-2">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5366,7 +5354,7 @@ using the shortint parameters and encoding scheme.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-5">Operands:&lt;/h4>
+&lt;h4 id="operands-3">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5389,6 +5377,96 @@ using the shortint parameters and encoding scheme.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h4 id="results-3">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="tfhe_rustadd-heirtfhe_rustaddop">&lt;code>tfhe_rust.add&lt;/code> (heir::tfhe_rust::AddOp)&lt;/h3>
+&lt;p>&lt;em>Arithmetic add of two tfhe ciphertexts.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.add` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-4">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
+&lt;td>The short int server key required to perform homomorphic operations.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-4">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="tfhe_rustbitand-heirtfhe_rustbitandop">&lt;code>tfhe_rust.bitand&lt;/code> (heir::tfhe_rust::BitAndOp)&lt;/h3>
+&lt;p>&lt;em>Logical AND of two tfhe ciphertexts.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.bitand` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-5">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
+&lt;td>The short int server key required to perform homomorphic operations.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h4 id="results-5">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -5405,6 +5483,7 @@ using the shortint parameters and encoding scheme.&lt;/p>
 &lt;/tbody>
 &lt;/table>
 &lt;h3 id="tfhe_rustsub-heirtfhe_rustsubop">&lt;code>tfhe_rust.sub&lt;/code> (heir::tfhe_rust::SubOp)&lt;/h3>
+&lt;p>&lt;em>Arithmetic sub of two tfhe ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.sub` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
