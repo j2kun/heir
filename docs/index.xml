@@ -1,4 +1,213 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>HEIR – Documentation</title><link>https://heir.dev/docs/</link><description>Recent content in Documentation on HEIR</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="https://heir.dev/docs/index.xml" rel="self" type="application/rss+xml"/><item><title>Docs: Secret</title><link>https://heir.dev/docs/design/secret/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/design/secret/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>HEIR – Documentation</title><link>https://heir.dev/docs/</link><description>Recent content in Documentation on HEIR</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="https://heir.dev/docs/index.xml" rel="self" type="application/rss+xml"/><item><title>Docs: Data-oblivious Transformations</title><link>https://heir.dev/docs/design/do_transformation/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/design/do_transformation/</guid><description>
+&lt;p>A data-oblivious program is one that decouples data input from program
+execution. Such programs exhibit control-flow and memory access patterns that
+are independent of their input(s). This programming model, when applied to
+encrypted data, is necessary for expressing FHE programs. There are 3 major
+transformations applied to convert a conventional program into a data-oblivious
+program:&lt;/p>
+&lt;h3 id="1-if-transformation">(1) If-Transformation&lt;/h3>
+&lt;p>If-operations conditioned on inputs create data-dependent control-flow in
+programs. &lt;code>scf.if&lt;/code> operations should at least define a &amp;rsquo;then&amp;rsquo; region (true path)
+and always terminate with &lt;code>scf.yield&lt;/code> even when &lt;code>scf.if&lt;/code> doesn&amp;rsquo;t produce a
+result. To convert a data-dependent &lt;code>scf.if&lt;/code> operation to an equivalent set of
+data-oblivious operations in MLIR, we hoist all safely speculatable operations
+in the &lt;code>scf.if&lt;/code> operation and convert the &lt;code>scf.yield&lt;/code> operation to an
+&lt;code>arith.select&lt;/code> operation. The following code snippet demonstrates an application
+of this transformation.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// Before applying If-transformation
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@my_function&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%input&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i1&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">})&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// Violation: %input is used as a condition causing a data-dependent branch
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span> &lt;span style="color:#000">%result&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span>&lt;span style="color:#a40000">`&lt;/span>&lt;span style="color:#000">%input&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%a&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>muli &lt;span style="color:#000">%b&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%c&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> scf&lt;span style="color:#000;font-weight:bold">.&lt;/span>yield &lt;span style="color:#000">%a&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span> else &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> scf&lt;span style="color:#000;font-weight:bold">.&lt;/span>yield &lt;span style="color:#000">%b&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// After applying If-transformation
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@my_function&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%input&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">})&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(){&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%a&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>muli &lt;span style="color:#000">%b&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%c&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%result&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>select &lt;span style="color:#000">%input&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%a&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%b&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>We implement a &lt;code>ConvertIfToSelect&lt;/code> pass that transforms operations with
+secret-input conditions and with only Pure operations (i.e., operations that
+have no memory side effect and are speculatable) in their body. &lt;strong>This
+transformation cannot be applied to operations when side effects are present in
+only one of the two regions.&lt;/strong> Although possible, we currently do not support
+transformations for operations where both regions have operations with matching
+side effects. When side effects are present, the pass fails.&lt;/p>
+&lt;h3 id="2-loop-transformation">(2) Loop-Transformation&lt;/h3>
+&lt;p>Loop statements with input-dependent conditions (bounds) and number of
+iterations introduce data-dependent branches that violate data-obliviousness. To
+convert such loops into a data-oblivious version, we replace input-dependent
+conditionals (bounds) with static input-independent parameters (e.g. defining a
+constant upper bound), and early-exits with update operations where the value
+returned from the loop is selectively updated using conditional predication. In
+MLIR, loops are expressed using either &lt;code>affine.for&lt;/code>, &lt;code>scf.for&lt;/code> or &lt;code>scf.while&lt;/code>
+operations.&lt;/p>
+&lt;blockquote>
+&lt;p>[!NOTE] Early exiting from loops is not supported in &lt;code>scf&lt;/code> and &lt;code>affine&lt;/code>, so
+early exits are not supported in this pipeline. TODO(#922): support early
+exits&lt;/p>
+&lt;/blockquote>
+&lt;ul>
+&lt;li>&lt;code>affine.for&lt;/code>: This operation lends itself well to expressing data oblivious
+programs because it requires constant loop bounds, eliminating input-dependent
+limits.&lt;/li>
+&lt;/ul>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%sum_0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0.0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// The for-loop&amp;#39;s bound is a fixed constant
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span> &lt;span style="color:#000">%sum&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> affine&lt;span style="color:#000;font-weight:bold">.&lt;/span>for &lt;span style="color:#000">%i&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> to &lt;span style="color:#0000cf;font-weight:bold">10&lt;/span> step &lt;span style="color:#0000cf;font-weight:bold">2&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> iter_args&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%sum_iter&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">%sum_0&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%t&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> affine&lt;span style="color:#000;font-weight:bold">.&lt;/span>load &lt;span style="color:#000">%buffer&lt;/span>&lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#000">%i&lt;/span>&lt;span style="color:#000;font-weight:bold">]&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">memref&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1024x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%sum_next&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>addf &lt;span style="color:#000">%sum_iter&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%input&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> affine&lt;span style="color:#000;font-weight:bold">.&lt;/span>yield &lt;span style="color:#000">%sum_next&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
+&lt;li>&lt;code>scf.for&lt;/code>: In contrast to affine.for, scf.for does allow input-dependent
+conditionals which does not adhere to data-obliviousness constraints. A
+solution to this could be to either have the programmer or the compiler
+specify an input-independent upper bound so we can transform the loop to use
+this upper bound and also carefully update values returned from the for-loop
+using conditional predication. Our current solution to this is for the
+programmer to add the lower bound and worst case upper bound in the static
+affine loop&amp;rsquo;s &lt;code>attributes&lt;/code> list.&lt;/li>
+&lt;/ul>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@my_function&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%value&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">},&lt;/span> &lt;span style="color:#000">%inputIndex&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">})&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// Violation: for-loop uses %inputIndex as upper bound which causes a secret-dependent control-flow
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span> &lt;span style="color:#000">%result&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> scf&lt;span style="color:#000;font-weight:bold">.&lt;/span>for &lt;span style="color:#000">%iv&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">%begin&lt;/span> to &lt;span style="color:#000">%inputIndex&lt;/span> step &lt;span style="color:#000">%step_value&lt;/span> iter_args&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">%value&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%output&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>muli &lt;span style="color:#000">%arg1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> scf&lt;span style="color:#000;font-weight:bold">.&lt;/span>yield &lt;span style="color:#000">%output&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}{&lt;/span>&lt;span style="color:#f57900">lower =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">upper =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">32&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// After applying Loop-Transformation
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@my_function&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%value&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">},&lt;/span> &lt;span style="color:#000">%inputIndex&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">})&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// Build for-loop using lower and upper values from the `attributes` list
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span> &lt;span style="color:#000">%result&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> affine&lt;span style="color:#000;font-weight:bold">.&lt;/span>for &lt;span style="color:#000">%iv&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> to step &lt;span style="color:#0000cf;font-weight:bold">32&lt;/span> iter_args&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">%value&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%output&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>muli &lt;span style="color:#000">%arg1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%agr1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%cond&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>cmpi eq&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%iv&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%inputIndex&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%newOutput&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>select &lt;span style="color:#000">%cond&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%output&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg1&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> scf&lt;span style="color:#000;font-weight:bold">.&lt;/span>yield &lt;span style="color:#000">%newOutput&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
+&lt;li>&lt;code>scf.while&lt;/code>: This operation represents a generic while/do-while loop that
+keeps iterating as long as a condition is met. An input-dependent while
+condition introduces a data-dependent control flow that violates
+data-oblivious constraints. For this transformation, the programmer needs to
+add the &lt;code>max_iter&lt;/code> attribute that describes the maximum number of iterations
+the loop runs which we then use the value to build our static &lt;code>affine.for&lt;/code>
+loop.&lt;/li>
+&lt;/ul>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// Before applying Loop-Transformation
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@my_function&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%input&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">}){&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%zero&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%result&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> scf&lt;span style="color:#000;font-weight:bold">.&lt;/span>while &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">%input&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%cond&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>cmpi slt&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%zero&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// Violation: scf.while uses %cond whose value depends on %input
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span> scf&lt;span style="color:#000;font-weight:bold">.&lt;/span>condition&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%cond&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000">%arg1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span> do &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f57900">^bb0&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg2&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%mul&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>muli &lt;span style="color:#000">%arg2&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg2&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> scf&lt;span style="color:#000;font-weight:bold">.&lt;/span>yield &lt;span style="color:#000">%mul&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span> attributes &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">max_iter =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">16&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i64&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// After applying Loop-Transformation
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@my_function&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%input&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">}){&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%zero&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%begin&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// Replace while-loop with a for-loop with a constant bound %MAX_ITER
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span> &lt;span style="color:#000">%result&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> affine&lt;span style="color:#000;font-weight:bold">.&lt;/span>for &lt;span style="color:#000">%iv&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">%0&lt;/span> to &lt;span style="color:#000">%16&lt;/span> step &lt;span style="color:#000">%step_value&lt;/span> iter_args&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%iter_arg&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">%input&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%cond&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>cmpi slt&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%iter_arg&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%zero&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%mul&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>muli &lt;span style="color:#000">%iter_arg&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%iter_arg&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%output&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>select &lt;span style="color:#000">%cond&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%mul&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%iter_arg&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> scf&lt;span style="color:#000;font-weight:bold">.&lt;/span>yield &lt;span style="color:#000">%output&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}{&lt;/span>&lt;span style="color:#f57900">max_iter =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">16&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i64&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="3-access-transformation">(3) Access-Transformation&lt;/h3>
+&lt;p>Input-dependent memory access cause data-dependent memory footprints. A naive
+data-oblivious solution to this maybe doing read-write operations over the
+entire data structure while only performing the desired save/update operation
+for the index of interest. For simplicity, we only look at load/store operations
+for tensors as they are well supported structures in high-level MLIR likely
+emitted by most frontends. We drafted the following non-SIMD approach for this
+transformation and defer SIMD optimizations to the &lt;code>heir-simd-vectorizer&lt;/code> pass:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// Before applying Access Transformation
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@my_function&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%input&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">},&lt;/span> &lt;span style="color:#000">%inputIndex&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">})&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%c_10&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">10&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// Violation: tensor.extract loads value at %inputIndex
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span> &lt;span style="color:#000">%extractedValue&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>extract &lt;span style="color:#000">%input&lt;/span>&lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#000">%inputIndex&lt;/span>&lt;span style="color:#000;font-weight:bold">]&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%newValue&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>addi &lt;span style="color:#000">%extractedValue&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%c_10&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// Violation: tensor.insert stores value at %inputIndex
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span> &lt;span style="color:#000">%inserted&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>insert &lt;span style="color:#000">%newValue&lt;/span> into &lt;span style="color:#000">%input&lt;/span>&lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#000">%inputIndex&lt;/span>&lt;span style="color:#000;font-weight:bold">]&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// After applying Non-SIMD Access Transformation
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@my_function&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%input&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">},&lt;/span> &lt;span style="color:#000">%inputIndex&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">})&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%c_10&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">10&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%i_0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%dummyValue&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%extractedValue&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> affine&lt;span style="color:#000;font-weight:bold">.&lt;/span>for &lt;span style="color:#000">%i&lt;/span>&lt;span style="color:#000;font-weight:bold">=&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> to &lt;span style="color:#0000cf;font-weight:bold">16&lt;/span> iter_args&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg&lt;/span>&lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">%dummyValue&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// 1. Check if %i matches %inputIndex
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span> &lt;span style="color:#8f5902;font-style:italic">// 2. Extract value at %i
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span> &lt;span style="color:#8f5902;font-style:italic">// 3. If %i matches %inputIndex, select %value extracted in (2), else select %dummyValue
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span> &lt;span style="color:#8f5902;font-style:italic">// 4. Yield selected value
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span> &lt;span style="color:#000">%cond&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>cmpi eq&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%i&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%inputIndex&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%value&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>extract &lt;span style="color:#000">%input&lt;/span>&lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#000">%i&lt;/span>&lt;span style="color:#000;font-weight:bold">]&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%selected&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>select &lt;span style="color:#000">%cond&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%value&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%dummyValue&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> affine&lt;span style="color:#000;font-weight:bold">.&lt;/span>yield &lt;span style="color:#000">%selected&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%newValue&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>addi &lt;span style="color:#000">%extractedValue&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%c_10&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%inserted&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> affine&lt;span style="color:#000;font-weight:bold">.&lt;/span>for &lt;span style="color:#000">%i&lt;/span>&lt;span style="color:#000;font-weight:bold">=&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> to &lt;span style="color:#0000cf;font-weight:bold">16&lt;/span> iter_args&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%inputArg&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">%input&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// 1. Check if %i matches the %inputIndex
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span> &lt;span style="color:#8f5902;font-style:italic">// 2. Insert %newValue and produce %newTensor
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span> &lt;span style="color:#8f5902;font-style:italic">// 3. If %i matches %inputIndex, select %newTensor, else select input tensor
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span> &lt;span style="color:#8f5902;font-style:italic">// 4. Yield final tensor
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span> &lt;span style="color:#000">%cond&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>cmpi eq&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%i&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%inputIndex&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%newTensor&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>insert &lt;span style="color:#000">%value&lt;/span> into &lt;span style="color:#000">%inputArg&lt;/span>&lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#000">%i&lt;/span>&lt;span style="color:#000;font-weight:bold">]&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%finalTensor&lt;/span>&lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>select &lt;span style="color:#000">%cond&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%newTensor&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%inputArg&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> affine&lt;span style="color:#000;font-weight:bold">.&lt;/span>yield &lt;span style="color:#000">%finalTensor&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="more-notes-on-these-transformations">More notes on these transformations&lt;/h3>
+&lt;p>These 3 transformations have a cascading behavior where transformations can be
+applied progressively to achieve a data-oblivious program. The order of the
+transformations goes as follows:&lt;/p>
+&lt;ul>
+&lt;li>&lt;em>Access-Transformation&lt;/em> (change data-dependent tensor accesses (reads-writes)
+to use &lt;code>affine.for&lt;/code> and &lt;code>scf.if&lt;/code> operations) -&amp;gt; &lt;em>Loop-Transformation&lt;/em> (change
+data-dependent loops to use constant bounds and condition the loop&amp;rsquo;s yield
+results with &lt;code>scf.if&lt;/code> operation) -&amp;gt; &lt;em>If-Transformation&lt;/em> (substitute
+data-dependent conditionals with &lt;code>arith.select&lt;/code> operation).&lt;/li>
+&lt;li>Besides that, when we apply non-SIMD Access-Transformation on multiple
+data-dependent tensor read-write operations over the same tensor, we can
+benefit from upstream affine transformations over the resulting multiple
+affine loops produced by the Access-Transformation to fuse these loops.&lt;/li>
+&lt;/ul></description></item><item><title>Docs: Secret</title><link>https://heir.dev/docs/design/secret/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/design/secret/</guid><description>
 &lt;p>The &lt;a href="https://heir.dev/docs/dialects/secret/">&lt;code>secret&lt;/code> dialect&lt;/a> contains types
 and operations to represent generic computations on secret data. It is intended
 to be a high-level entry point for the HEIR compiler, agnostic of any particular
@@ -1507,12 +1716,18 @@ generation after &lt;code>--emit-verilog&lt;/code>.&lt;/p>
 &lt;a href="https://docs.google.com/document/d/1FLSiaPlX38GNHqqqi_Mz3gMuVSlS4sUcwBWqpt6Fkew/edit?usp=sharing">notes&lt;/a>
 and
 &lt;a href="https://drive.google.com/file/d/1sHoRvNlS14RB-r3Rk0y2RyWOERVGNc-t/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-08-08.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-05-02</title><link>https://heir.dev/blog/2024/05/02/heir-meeting-2024-05-02/</link><pubDate>Thu, 02 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/02/heir-meeting-2024-05-02/</guid><description>
+from the HEIR meeting on 2024-08-08.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-07-18 (mod_arith dialect)</title><link>https://heir.dev/blog/2024/07/18/heir-meeting-2024-07-18-mod_arith-dialect/</link><pubDate>Thu, 18 Jul 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/07/18/heir-meeting-2024-07-18-mod_arith-dialect/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1uEDeIN0iTUmmtlacZg0c2j7VbAHO3A9e0_8mnunUv10/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1o2-I03DJtNJQDupSHn8LtOXLmxsd3WO1fjvqLbT-SIc/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1u1q74rUKdXFi08tAKFRKjI-bojuorQK8/view?usp=drivesdk">video recording&lt;/a>
-from the HEIR meeting on 2024-05-02.&lt;/p></description></item><item><title>Docs: ApplyFoldersPasses</title><link>https://heir.dev/docs/passes/applyfolderspasses/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/passes/applyfolderspasses/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1bCMuuKnBVf6HP7R2SiZgo1C1vsG6FzF2/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-07-18. This special discussion was focused on the
+modular arithmetic dialect.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-04-18</title><link>https://heir.dev/blog/2024/04/18/heir-meeting-2024-04-18/</link><pubDate>Thu, 18 Apr 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/04/18/heir-meeting-2024-04-18/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1BJjfYI2yjR3YEg_ugjDuS-trAkYMlKbU7jpH_M1GF3Q/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1WSsUp9CmjDmEVtGMYk2QXIpZCEetf_Ot/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-04-18.&lt;/p></description></item><item><title>Docs: ApplyFoldersPasses</title><link>https://heir.dev/docs/passes/applyfolderspasses/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/passes/applyfolderspasses/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h3 id="-apply-folders">&lt;code>-apply-folders&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Apply all folding patterns from canonicalize&lt;/em>&lt;/p>
@@ -4798,7 +5013,15 @@ restrict conversion only to these two ops - addf and mulf - from arith dialect.&
 &lt;h4 id="options">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-convert-ops : comma-separated list of ops to run this pass on
 -convert-dialects : comma-separated list of dialects to run this pass on
-&lt;/code>&lt;/pre></description></item><item><title>Docs: ForwardStoreToLoadPasses</title><link>https://heir.dev/docs/passes/forwardstoretoloadpasses/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/passes/forwardstoretoloadpasses/</guid><description>
+&lt;/code>&lt;/pre></description></item><item><title>Docs: ForwardInsertToExtractPasses</title><link>https://heir.dev/docs/passes/forwardinserttoextractpasses/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/passes/forwardinserttoextractpasses/</guid><description>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h3 id="-forward-insert-to-extract">&lt;code>-forward-insert-to-extract&lt;/code>&lt;/h3>
+&lt;p>&lt;em>Forward inserts to extracts within a single block&lt;/em>&lt;/p>
+&lt;p>This pass is similar to forward-store-to-load pass where store ops
+are forwarded load ops; here instead tensor.insert ops are forwarded
+to tensor.extract ops.&lt;/p>
+&lt;p>Does not support complex control flow within a block, nor ops with
+arbitrary subregions.&lt;/p></description></item><item><title>Docs: ForwardStoreToLoadPasses</title><link>https://heir.dev/docs/passes/forwardstoretoloadpasses/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/passes/forwardstoretoloadpasses/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h3 id="-forward-store-to-load">&lt;code>-forward-store-to-load&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Forward stores to loads within a single block&lt;/em>&lt;/p>
@@ -4938,6 +5161,47 @@ transposed constant.&lt;/p></description></item><item><title>Docs: LinalgToTenso
 via the Halevi-Shoup and squat matrix multiplication algorithms.&lt;/p></description></item><item><title>Docs: LWE</title><link>https://heir.dev/docs/dialects/lwe/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/lwe/</guid><description>
 &lt;h2 id="lwe-attributes">LWE attributes&lt;/h2>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h3 id="plaintextencodingattr">PlaintextEncodingAttr&lt;/h3>
+&lt;p>Syntax: &lt;code>#lwe.plaintext_encoding&lt;/code>&lt;/p>
+&lt;h3 id="applicationdataattr">ApplicationDataAttr&lt;/h3>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#lwe.application_data&amp;lt;
+mlir::Type, # message_type
+Attribute # overflow
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>An attribute describing the semantics of the underlying application data.&lt;/p>
+&lt;p>The &lt;code>messageType&lt;/code> parameter is used to describe the type and bits of the
+original application data, e.g. i1, i32, f32. This type is later mapped
+into the plaintext space of an FHE scheme by embedding, scaling, or other
+techniques.&lt;/p>
+&lt;p>This attribute also contains information about the overflow semantics of the
+data in the application. By default, we assume that the application program
+was written so that the overflow is not expected and the overflow attribute
+can can be &lt;code>no_overflow&lt;/code>. For LWE-based CGGI ciphertexts, the overflow
+attribute will usually be &lt;code>preserve_overflow&lt;/code>, since messages will overflow
+into padding bits.&lt;/p>
+&lt;h4 id="parameters">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">message_type&lt;/td>
+&lt;td style="text-align:center">&lt;code>mlir::Type&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">overflow&lt;/td>
+&lt;td style="text-align:center">&lt;code>Attribute&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="bitfieldencodingattr">BitFieldEncodingAttr&lt;/h3>
 &lt;p>An attribute describing encoded LWE plaintexts using bit fields.&lt;/p>
 &lt;p>Syntax:&lt;/p>
@@ -4981,7 +5245,7 @@ LWE ciphertext in the least-significant bits of a larger integer.
 This corresponds to the following.&lt;/p>
 &lt;pre tabindex="0">&lt;code> nn...n|bbbb
 MSB^ ^LSB
-&lt;/code>&lt;/pre>&lt;h4 id="parameters">Parameters:&lt;/h4>
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-1">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5003,13 +5267,267 @@ MSB^ ^LSB
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="ciphertextspaceattr">CiphertextSpaceAttr&lt;/h3>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#lwe.ciphertext_space&amp;lt;
+::mlir::polynomial::RingAttr, # ring
+::mlir::heir::lwe::LweEncryptionType # encryption_type
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>An attribute describing the ciphertext space and the transformation from
+plaintext space to ciphertext space of an FHE scheme.&lt;/p>
+&lt;p>The ciphertext space information includes the ring structure, which contains
+the ciphertext modulus $q$. Ciphertexts using an RNS representation for $q$
+will represent their ciphertext components in the ring attribute. Scalar LWE
+ciphertexts (as opposed to RLWE) use an ideal polynomial of degree 1, $x$.
+CGGI ciphertexts will typically use a power of two modulus.&lt;/p>
+&lt;p>The ciphertext encoding info is used to describe the way the plaintext data
+is encoded into the ciphertext (in the MSB, LSB, or mixed).&lt;/p>
+&lt;h4 id="parameters-2">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">ring&lt;/td>
+&lt;td style="text-align:center">&lt;code>::mlir::polynomial::RingAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">encryption_type&lt;/td>
+&lt;td style="text-align:center">&lt;code>::mlir::heir::lwe::LweEncryptionType&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="coefficientencodingattr">CoefficientEncodingAttr&lt;/h3>
+&lt;p>An encoding of cleartexts directly as coefficients.&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#lwe.coefficient_encoding&amp;lt;
+unsigned # scaling_factor
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>A coefficient encoding of a list of integers asserts that the coefficients
+of the polynomials contain the integers, with the same semantics as
+&lt;code>constant_coefficient_encoding&lt;/code> for per-coefficient encodings.&lt;/p>
+&lt;p>A &lt;code>scaling_factor&lt;/code> is optionally applied on the scalar when converting from
+a rounded floating point to an integer.&lt;/p>
+&lt;p>Example:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#coeff_encoding = #lwe.coefficient_encoding&amp;lt;scaling_factor=10000&amp;gt;
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-3">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">scaling_factor&lt;/td>
+&lt;td style="text-align:center">&lt;code>unsigned&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="constantcoefficientencodingattr">ConstantCoefficientEncodingAttr&lt;/h3>
+&lt;p>An encoding of a scalar in the constant coefficient&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#lwe.constant_coefficient_encoding&amp;lt;
+unsigned # scaling_factor
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>An encoding of a single scalar into the constant coefficient of the plaintext.&lt;/p>
+&lt;p>All other coefficients of the plaintext are set to be zero. This encoding is
+used to encode scalar LWE ciphertexts where the plaintext space is viewed
+as a polynomial ring modulo &lt;code>x&lt;/code>.&lt;/p>
+&lt;p>The scalar is first multiplied by the &lt;code>scaling_factor&lt;/code> and then rounded to
+the nearest integer before encoding into the plaintext coefficient.&lt;/p>
+&lt;p>Example:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#coeff_encoding = #lwe.constant_coefficient_encoding&amp;lt;scaling_factor=10000&amp;gt;
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-4">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">scaling_factor&lt;/td>
+&lt;td style="text-align:center">&lt;code>unsigned&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="fullcrtpackingencodingattr">FullCRTPackingEncodingAttr&lt;/h3>
+&lt;p>An encoding of cleartexts via CRT slots.&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#lwe.full_crt_packing_encoding&amp;lt;
+unsigned # scaling_factor
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>This encoding maps a list of integers via the Chinese Remainder Theorem (CRT) into the plaintext space.&lt;/p>
+&lt;p>Given a ring with irreducible ideal polynomial &lt;code>f(x)&lt;/code> and coefficient
+modulus &lt;code>q&lt;/code>, &lt;code>f(x)&lt;/code> can be decomposed modulo &lt;code>q&lt;/code> into a direct product of
+lower-degree polynomials. This allows full SIMD-style homomorphic operations
+across the slots formed from each factor.&lt;/p>
+&lt;p>This attribute can only be used in the context of on full CRT packing, where
+the polynomial &lt;code>f(x)&lt;/code> splits completely (into linear factors) and the number
+of slots equals the degree of &lt;code>f(x)&lt;/code>. This happens when &lt;code>q&lt;/code> is prime and &lt;code>q = 1 mod n&lt;/code>.&lt;/p>
+&lt;p>A &lt;code>scaling_factor&lt;/code> is optionally applied on the scalar when converting from
+a rounded floating point to an integer.&lt;/p>
+&lt;p>Example:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#coeff_encoding = #lwe.full_crt_packing_encoding&amp;lt;scaling_factor=10000&amp;gt;
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-5">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">scaling_factor&lt;/td>
+&lt;td style="text-align:center">&lt;code>unsigned&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="inversecanonicalencodingattr">InverseCanonicalEncodingAttr&lt;/h3>
+&lt;p>An encoding of cleartexts via the inverse canonical embedding.&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#lwe.inverse_canonical_encoding&amp;lt;
+unsigned # scaling_factor
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>Let $n$ be the degree of the polynomials in the plaintext space. An
+&amp;ldquo;inverse_canonical_encoding&amp;rdquo; of a list of real or complex values
+$v_1, \dots, v_{n/2}$ is (almost) the inverse of the following decoding
+map.&lt;/p>
+&lt;p>Define a map $\tau_N$ that maps a polynomial $p \in \mathbb{Z}[x] / (x^N + 1)
+\to \mathbb{C}^{N/2}$ by evaluating it at the following $N/2$ points,
+where $\omega = e^{2 \pi i / 2N}$ is the primitive $2N$th root of unity:&lt;/p>
+&lt;p>[
+\omega, \omega^3, \omega^5, \dots, \omega^{N-1}
+]&lt;/p>
+&lt;p>Then the complete decoding operation is $\textup{Decode}(p) =
+(1/\Delta)\tau_N(p)$, where $\Delta$ is a scaling parameter and $\tau_N$ is
+the truncated canonical embedding above. The encoding operation is the
+inverse of the decoding operation, with some caveats explained below.&lt;/p>
+&lt;p>The map $\tau_N$ is derived from the so-called &lt;em>canonical embedding&lt;/em>
+$\tau$, though in the standard canonical embedding, we evaluate at all odd
+powers of the root of unity, $\omega, \omega^3, \dots, \omega^{2N-1}$. For
+polynomials in the slightly larger space $\mathbb{R}[x] / (x^N + 1)$, the
+image of the canonical embedding is the subspace $H \subset \mathbb{C}^N$
+defined by tuples $(z_1, \dots, z_N)$ such that $\overline{z_i} =
+\overline{z_{N-i+1}}$. Note that this property holds because polynomial
+evaluation commutes with complex conjugates, and the second half of the
+roots of unity evaluate are complex conjugates of the first half. The
+converse, that any such tuple with complex conjugate symmetry has an
+inverse under $\tau$ with all real coefficients, makes $\tau$ is a
+bijection onto $H$. $\tau$ and its inverse are explicitly computable as
+discrete Fourier Transforms.&lt;/p>
+&lt;p>Because of the symmetry in canonical embedding for real polynomials, inputs
+to this encoding can be represented as a list of $N/2$ complex points, with
+the extra symmetric structure left implicit. $\tau_N$ and its inverse can
+also be explicitly computed without need to expand the vectors to length
+$N$.&lt;/p>
+&lt;p>The rounding step is required to invert the decoding because, while
+cleartexts must be (implicitly) in the subspace $H$, they need not be the
+output of $\tau_N$ for an &lt;em>integer&lt;/em> polynomial. The rounding step ensures
+we can use integer polynomial plaintexts for the FHE operations. There are
+multiple rounding mechanisms, and this attribute does not specify which is
+used, because in theory two ciphertexts that have used different roundings
+are still compatible, though they may have different noise growth patterns.&lt;/p>
+&lt;p>The scaling parameter $\Delta$ is specified by the &lt;code>scaling_factor&lt;/code>, which
+are applied coefficient-wise using the same semantics as the
+&lt;code>constant_coefficient_encoding&lt;/code>.&lt;/p>
+&lt;p>A typical flow for the CKKS scheme using this encoding would be to apply an
+inverse FFT operation to invert the canonical embedding to be a polynomial
+with real coefficients, then encrypt scale the resulting polynomial&amp;rsquo;s
+coefficients according to the scaling parameters, then round to get integer
+coefficients.&lt;/p>
+&lt;p>Example:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#canonical_encoding = #lwe.inverse_canonical_encoding&amp;lt;scaling_factor=10000&amp;gt;
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-6">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">scaling_factor&lt;/td>
+&lt;td style="text-align:center">&lt;code>unsigned&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="keyattr">KeyAttr&lt;/h3>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#lwe.key&amp;lt;
+::mlir::StringAttr, # id
+unsigned, # size
+::llvm::ArrayRef&amp;lt;unsigned int&amp;gt; # basis
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>An attribute describing the key used for encrypting the ciphertext.&lt;/p>
+&lt;p>This attribute includes a key identifier for the original key used to
+encrypt the secret key.&lt;/p>
+&lt;p>The &lt;code>key_size&lt;/code> parameter is used to describe the number of polynomials of
+the secret key. This is typically $1$ for RLWE ciphertexts and greater than
+$1$ for LWE instances. A ciphertext encrypted with a &lt;code>key_size&lt;/code> of $k$ will
+have size $k+1$.&lt;/p>
+&lt;p>The key basis describes the inner product used in the phase calculation in
+decryption. This attribute is only supported for RLWE ciphertexts whose
+&lt;code>key_size&lt;/code> is $1$. An RLWE ciphertext is canonically encrypted against key
+basis &lt;code>(1, s)&lt;/code>. After a multiplication, its size will increase and the basis
+will be &lt;code>(1, s, s^2)&lt;/code>. The array that represents the key basis is
+constructed by listing the powers of &lt;code>s&lt;/code> at each position of the array. For
+example, &lt;code>(1, s, s^2)&lt;/code> corresponds to &lt;code>[0, 1, 2]&lt;/code>, while &lt;code>(1, s^2)&lt;/code>
+corresponds to &lt;code>[0, 2]&lt;/code>.&lt;/p>
+&lt;h4 id="parameters-7">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">id&lt;/td>
+&lt;td style="text-align:center">&lt;code>::mlir::StringAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">size&lt;/td>
+&lt;td style="text-align:center">&lt;code>unsigned&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">basis&lt;/td>
+&lt;td style="text-align:center">&lt;code>::llvm::ArrayRef&amp;lt;unsigned int&amp;gt;&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="lweparamsattr">LWEParamsAttr&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>#lwe.lwe_params&amp;lt;
 IntegerAttr, # cmod
 unsigned # dimension
 &amp;gt;
-&lt;/code>&lt;/pre>&lt;h4 id="parameters-1">Parameters:&lt;/h4>
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-8">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5031,6 +5549,90 @@ unsigned # dimension
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="moduluschainattr">ModulusChainAttr&lt;/h3>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#lwe.modulus_chain&amp;lt;
+::llvm::ArrayRef&amp;lt;mlir::IntegerAttr&amp;gt;, # elements
+int # current
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>An attribute describing the elements of the modulus chain of an RLWE scheme.&lt;/p>
+&lt;h4 id="parameters-9">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">elements&lt;/td>
+&lt;td style="text-align:center">&lt;code>::llvm::ArrayRef&amp;lt;mlir::IntegerAttr&amp;gt;&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">current&lt;/td>
+&lt;td style="text-align:center">&lt;code>int&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="nooverflowattr">NoOverflowAttr&lt;/h3>
+&lt;p>An attribute informing that application data never overflows.&lt;/p>
+&lt;p>Syntax: &lt;code>#lwe.no_overflow&lt;/code>&lt;/p>
+&lt;p>This attribute informs lowerings that a program is written so that the message data
+will never overflow beyond the message type.&lt;/p>
+&lt;p>// FIXME: Have a separate WraparoundOverflow, which lowers the same as NoOverflow?&lt;/p>
+&lt;h3 id="plaintextspaceattr">PlaintextSpaceAttr&lt;/h3>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#lwe.plaintext_space&amp;lt;
+::mlir::polynomial::RingAttr, # ring
+Attribute # encoding
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>An attribute describing the plaintext space and the transformation from
+application data to plaintext space of an FHE scheme.&lt;/p>
+&lt;p>The plaintext space information is the ring structure, which contains the
+plaintext modulus $t$, which may be a power of two in the case of CGGI
+ciphertexts, or a prime power for RLWE. LWE ciphertexts use the
+ideal polynomial of degree 1 $x$. The plaintext modulus used in LWE-based
+CGGI plaintexts describes the full message space $\mathbb{Z}_p$ including
+the padding bits. The application data info attribute describes the space
+$\mathbb{Z}_p&amp;rsquo;$ where $p&amp;rsquo; &amp;lt; p$ that the underlying message belongs to.&lt;/p>
+&lt;p>For RLWE schemes, this will include the type of encoding of application data
+integers to a plaintext space &lt;code>Z_p[X]/X^N + 1&lt;/code>. This may be a constant
+coefficient encoding, CRT-based packing for SIMD semantics, or other slot
+packing. When using full CRT packing, the ring must split into linear
+factors. The CKKS scheme will also include attributes describing the complex
+encoding, including the scaling factor, which will change after
+multiplication and rescaling.&lt;/p>
+&lt;h4 id="parameters-10">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">ring&lt;/td>
+&lt;td style="text-align:center">&lt;code>::mlir::polynomial::RingAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">encoding&lt;/td>
+&lt;td style="text-align:center">&lt;code>Attribute&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="preserveoverflowattr">PreserveOverflowAttr&lt;/h3>
+&lt;p>An attribute informing that application data overflows in the message type.&lt;/p>
+&lt;p>Syntax: &lt;code>#lwe.preserve_overflow&lt;/code>&lt;/p>
+&lt;p>This attribute informs lowerings that a program is written so that the message data
+may overflow beyond the message type.&lt;/p>
 &lt;h3 id="rlweparamsattr">RLWEParamsAttr&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>#lwe.rlwe_params&amp;lt;
@@ -5043,7 +5645,7 @@ unsigned, # dimension
 to LWEParams.dimension.&lt;/li>
 &lt;li>&lt;code>ring&lt;/code>: the polynomial ring to use.&lt;/li>
 &lt;/ul>
-&lt;h4 id="parameters-2">Parameters:&lt;/h4>
+&lt;h4 id="parameters-11">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5080,7 +5682,7 @@ encodings starting bit position.&lt;/p>
 &lt;p>Example:&lt;/p>
 &lt;pre tabindex="0">&lt;code>#lwe_encoding = #lwe.unspecified_bit_field_encoding&amp;lt;cleartext_bitwidth=3&amp;gt;
 %lwe_ciphertext = arith.constant &amp;lt;[1,2,3,4]&amp;gt; : tensor&amp;lt;4xi32, #lwe_encoding&amp;gt;
-&lt;/code>&lt;/pre>&lt;h4 id="parameters-3">Parameters:&lt;/h4>
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-12">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5169,7 +5771,7 @@ coefficients.&lt;/p>
 %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor&amp;lt;2x!poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;&amp;gt;
 &lt;/code>&lt;/pre>&lt;p>See &lt;code>bit_field_encoding&lt;/code> for the definition of the &lt;code>cleartext_start&lt;/code> and
 &lt;code>cleartext_bitwidth&lt;/code> fields.&lt;/p>
-&lt;h4 id="parameters-4">Parameters:&lt;/h4>
+&lt;h4 id="parameters-13">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5213,7 +5815,7 @@ scheme that supports the coefficient encoding.&lt;/p>
 %poly1 = poly.from_tensor %coeffs1 : tensor&amp;lt;10xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring&amp;gt;
 %poly2 = poly.from_tensor %coeffs2 : tensor&amp;lt;10xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring&amp;gt;
 %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor&amp;lt;2x!poly.poly&amp;lt;#ring&amp;gt;, #coeff_encoding&amp;gt;
-&lt;/code>&lt;/pre>&lt;h4 id="parameters-5">Parameters:&lt;/h4>
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-14">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5274,7 +5876,7 @@ NTT/INTT to tansform quickly between the coefficient and evaluation forms.&lt;/p
 %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor&amp;lt;2x!poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;&amp;gt;
 &lt;/code>&lt;/pre>&lt;p>See &lt;code>bit_field_encoding&lt;/code> for the definition of the &lt;code>cleartext_start&lt;/code> and
 &lt;code>cleartext_bitwidth&lt;/code> fields.&lt;/p>
-&lt;h4 id="parameters-6">Parameters:&lt;/h4>
+&lt;h4 id="parameters-15">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5310,7 +5912,7 @@ LWEParamsAttr # lwe_params
 Ciphertext to ensure proper decoding after decryption. It also keeps track
 of the ring where the LWE ciphertext is defined, which provides information
 on the ciphertext shape and the ring operations used in LWE operations.&lt;/p>
-&lt;h4 id="parameters-7">Parameters:&lt;/h4>
+&lt;h4 id="parameters-16">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5341,7 +5943,7 @@ on the ciphertext shape and the ring operations used in LWE operations.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>A type for LWE plaintexts.&lt;/p>
 &lt;p>This type keeps track of the plaintext integer encoding for the LWE
 plaintext before it is encrypted.&lt;/p>
-&lt;h4 id="parameters-8">Parameters:&lt;/h4>
+&lt;h4 id="parameters-17">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5358,6 +5960,146 @@ plaintext before it is encrypted.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="newlweciphertexttype">NewLWECiphertextType&lt;/h3>
+&lt;p>A ciphertext type&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>!lwe.new_lwe_ciphertext&amp;lt;
+ApplicationDataAttr, # application_data
+PlaintextSpaceAttr, # plaintext_space
+CiphertextSpaceAttr, # ciphertext_space
+KeyAttr, # key
+ModulusChainAttr # modulus_chain
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>An LWE ciphertext will always contain the application data, plaintext space,
+ciphertext space, and key information.&lt;/p>
+&lt;p>A modulus chain is optionally specified for parameter choices in RLWE
+schemes that use more than one of modulus. When no modulus chain is
+specified, the ciphertext modulus is always the ciphertext ring&amp;rsquo;s
+coefficient modulus.&lt;/p>
+&lt;h4 id="parameters-18">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">application_data&lt;/td>
+&lt;td style="text-align:center">&lt;code>ApplicationDataAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">plaintext_space&lt;/td>
+&lt;td style="text-align:center">&lt;code>PlaintextSpaceAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">ciphertext_space&lt;/td>
+&lt;td style="text-align:center">&lt;code>CiphertextSpaceAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">key&lt;/td>
+&lt;td style="text-align:center">&lt;code>KeyAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">modulus_chain&lt;/td>
+&lt;td style="text-align:center">&lt;code>ModulusChainAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="newlweplaintexttype">NewLWEPlaintextType&lt;/h3>
+&lt;p>A plaintext type&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>!lwe.new_lwe_plaintext&amp;lt;
+ApplicationDataAttr, # application_data
+PlaintextSpaceAttr # plaintext_space
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-19">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">application_data&lt;/td>
+&lt;td style="text-align:center">&lt;code>ApplicationDataAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">plaintext_space&lt;/td>
+&lt;td style="text-align:center">&lt;code>PlaintextSpaceAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="newlwepublickeytype">NewLWEPublicKeyType&lt;/h3>
+&lt;p>A public key for LWE&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>!lwe.new_lwe_public_key&amp;lt;
+KeyAttr, # key
+::mlir::polynomial::RingAttr # ring
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-20">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">key&lt;/td>
+&lt;td style="text-align:center">&lt;code>KeyAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">ring&lt;/td>
+&lt;td style="text-align:center">&lt;code>::mlir::polynomial::RingAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="newlwesecretkeytype">NewLWESecretKeyType&lt;/h3>
+&lt;p>A secret key for LWE&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>!lwe.new_lwe_secret_key&amp;lt;
+KeyAttr, # key
+::mlir::polynomial::RingAttr # ring
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-21">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">key&lt;/td>
+&lt;td style="text-align:center">&lt;code>KeyAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">ring&lt;/td>
+&lt;td style="text-align:center">&lt;code>::mlir::polynomial::RingAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="rlweciphertexttype">RLWECiphertextType&lt;/h3>
 &lt;p>A type for RLWE ciphertexts&lt;/p>
 &lt;p>Syntax:&lt;/p>
@@ -5366,7 +6108,7 @@ plaintext before it is encrypted.&lt;/p>
 RLWEParamsAttr, # rlwe_params
 Type # underlying_type
 &amp;gt;
-&lt;/code>&lt;/pre>&lt;h4 id="parameters-9">Parameters:&lt;/h4>
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-22">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5401,7 +6143,7 @@ Type # underlying_type
 ::mlir::polynomial::RingAttr, # ring
 Type # underlying_type
 &amp;gt;
-&lt;/code>&lt;/pre>&lt;h4 id="parameters-10">Parameters:&lt;/h4>
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-23">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5434,7 +6176,7 @@ Type # underlying_type
 &lt;pre tabindex="0">&lt;code>!lwe.rlwe_public_key&amp;lt;
 RLWEParamsAttr # rlwe_params
 &amp;gt;
-&lt;/code>&lt;/pre>&lt;h4 id="parameters-11">Parameters:&lt;/h4>
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-24">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5457,7 +6199,7 @@ RLWEParamsAttr # rlwe_params
 &lt;pre tabindex="0">&lt;code>!lwe.rlwe_secret_key&amp;lt;
 RLWEParamsAttr # rlwe_params
 &amp;gt;
-&lt;/code>&lt;/pre>&lt;h4 id="parameters-12">Parameters:&lt;/h4>
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-25">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -7781,382 +8523,4 @@ that &lt;code>type1.isCompatibleWith(type2)&lt;/code> if and only if
 &lt;code>type2.isCompatibleWith(type1)&lt;/code>, and further
 &lt;code>type2.isCompatibleWith(type3)&lt;/code> if and only if
 &lt;code>type1.isCompatibleWith(type3)&lt;/code>.&lt;/p>
-&lt;p>NOTE: This method &lt;em>must&lt;/em> be implemented by the user.&lt;/p></description></item><item><title>: Search Results</title><link>https://heir.dev/search/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/search/</guid><description/></item><item><title>Docs: Secret</title><link>https://heir.dev/docs/dialects/secret/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/secret/</guid><description>
-&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;p>Secret is a dialect for computations that operate on encrypted data.&lt;/p>
-&lt;p>Secret is intended to serve as a scheme-agnostic front-end for the HEIR
-ecosystem of dialects. It is supposed to be fully interoperable with the
-rest of MLIR via secret.generic, while lower-level HEIR dialects would have
-custom types for arithmetic on secret integers of various bit widths.&lt;/p>
-&lt;h2 id="secret-types">Secret types&lt;/h2>
-&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h3 id="secrettype">SecretType&lt;/h3>
-&lt;p>A secret value&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>!secret.secret&amp;lt;
-Type # valueType
-&amp;gt;
-&lt;/code>&lt;/pre>&lt;p>A generic wrapper around another MLIR type, representing an encrypted value
-but not specifying the manner of encryption. This is useful in HEIR because
-the compiler may choose various details of the FHE scheme based on the
-properties of the input program, the backend target hardware, and cost
-models of the various passes.&lt;/p>
-&lt;h4 id="parameters">Parameters:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Parameter&lt;/th>
-&lt;th style="text-align:center">C++ type&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">valueType&lt;/td>
-&lt;td style="text-align:center">&lt;code>Type&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h2 id="secret-ops">Secret ops&lt;/h2>
-&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h3 id="secretcast-heirsecretcastop">&lt;code>secret.cast&lt;/code> (heir::secret::CastOp)&lt;/h3>
-&lt;p>&lt;em>A placeholder cast from one secret type to another&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `secret.cast` $input attr-dict `:` qualified(type($input)) `to` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>A &lt;code>cast&lt;/code> operation represents a type cast from one secret type to another,
-that is used to enable the intermixing of various equivalent secret types
-before a lower-level FHE scheme has been chosen.&lt;/p>
-&lt;p>For example, &lt;code>secret.cast&lt;/code> can be used to convert a &lt;code>secret&amp;lt;i8&amp;gt;&lt;/code> to a
-&lt;code>secret&amp;lt;tensor&amp;lt;8xi1&amp;gt;&amp;gt;&lt;/code> as a compatibility layer between boolean and
-non-boolean parts of a program. The pass that later lowers the IR to
-specific FHE schemes would need to replace these casts with appropriate
-scheme-specific operations, and it is left to those later passes to
-determine which casts are considered valid.&lt;/p>
-&lt;p>Example:&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%result&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>cast &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i8&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> to &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i1&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%result2&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>cast &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i8&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> to &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">2x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i4&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>A secret value&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A secret value&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="secretconceal-heirsecretconcealop">&lt;code>secret.conceal&lt;/code> (heir::secret::ConcealOp)&lt;/h3>
-&lt;p>&lt;em>Convert a non-secret value into a secret&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `secret.conceal` $cleartext attr-dict `:` type($cleartext) `-&amp;gt;` type($output)
-&lt;/code>&lt;/pre>&lt;p>Convert a value to a secret containing the same value.&lt;/p>
-&lt;p>This op represents a scheme-agnostic encryption operation, as well as a
-&amp;ldquo;trivial encryption&amp;rdquo; operation which is needed for some FHE schemes. This
-op is also useful for type materialization in the dialect conversion
-framework.&lt;/p>
-&lt;p>Examples:&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%Y&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>conceal &lt;span style="color:#000">%value&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-1">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>cleartext&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-1">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A secret value&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="secretgeneric-heirsecretgenericop">&lt;code>secret.generic&lt;/code> (heir::secret::GenericOp)&lt;/h3>
-&lt;p>&lt;em>Lift a plaintext computation to operate on secrets.&lt;/em>&lt;/p>
-&lt;p>&lt;code>secret.generic&lt;/code> lifts a plaintext computation to operate on one or more
-secrets. The lifted computation is represented as a region containing a
-single block terminated by &lt;code>secret.yield&lt;/code>. The arguments of the &lt;code>secret.generic&lt;/code>
-may include one or more &lt;code>!secret.secret&lt;/code> types. The arguments of the block
-in the op&amp;rsquo;s body correspond to the underlying plaintext types of the secrets.&lt;/p>
-&lt;p>&lt;code>secret.generic&lt;/code> is not isolated from above, so you may directly reference
-values in the enclosing scope. This is required to support using
-&lt;code>secret.generic&lt;/code> inside of ops with &lt;code>AffineScope&lt;/code>, while having the body
-of the generic use the induction variables defined by the affine scope.&lt;/p>
-&lt;p>Basic examples:&lt;/p>
-&lt;p>Add two secret integers together&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%Z&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>generic ins&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%X&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%Y&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f57900">^bb0&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%x&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%y&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">):&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%z&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>addi &lt;span style="color:#000">%x&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%y&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>yield &lt;span style="color:#000">%z&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Add a secret value with a plaintext value. I.e., not all arguments to the
-op need be secret.&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%Z&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>generic ins&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%X&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%Y&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f57900">^bb0&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%x&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%y&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">):&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%z&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>addi &lt;span style="color:#000">%x&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%y&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>yield &lt;span style="color:#000">%z&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>The same as above, but the plaintext op is not passed through the basic
-block.&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%y&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">7&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%Z&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>generic ins&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%X&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f57900">^bb0&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%x&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">):&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%z&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>addi &lt;span style="color:#000">%x&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%y&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>yield &lt;span style="color:#000">%z&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>SingleBlockImplicitTerminator&amp;lt;YieldOp&amp;gt;&lt;/code>, &lt;code>SingleBlock&lt;/code>&lt;/p>
-&lt;h4 id="operands-2">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>inputs&lt;/code>&lt;/td>
-&lt;td>variadic of any type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-2">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>results&lt;/code>&lt;/td>
-&lt;td>variadic of any type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="secretreveal-heirsecretrevealop">&lt;code>secret.reveal&lt;/code> (heir::secret::RevealOp)&lt;/h3>
-&lt;p>&lt;em>Convert a secret value into a non-secret&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `secret.reveal` $input attr-dict `:` type($input) `-&amp;gt;` type($cleartext)
-&lt;/code>&lt;/pre>&lt;p>Convert a secret into a non-secret containing the same value.&lt;/p>
-&lt;p>This op represents a scheme-agnostic decryption operation. This op is also
-useful for target materialization in the dialect conversion framework.&lt;/p>
-&lt;p>Examples:&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%Y&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>reveal &lt;span style="color:#000">%secret_value&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-3">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>A secret value&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-3">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>cleartext&lt;/code>&lt;/td>
-&lt;td>any type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="secretseparator-heirsecretseparatorop">&lt;code>secret.separator&lt;/code> (heir::secret::SeparatorOp)&lt;/h3>
-&lt;p>&lt;em>Convert a non-secret value into a secret&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `secret.separator` attr-dict ($inputs^ `:` type($inputs))?
-&lt;/code>&lt;/pre>&lt;p>This operation is used as a separation boundary between logical subunits of
-the module. This is used in conjunction with
-&lt;code>--secret-distribute-generic=distribute-through=secret.separator&lt;/code> to break a
-generic around these separators and allow for optimization passses to
-analyze and optimize the sub-units locally.&lt;/p>
-&lt;p>In order to allow bufferization of modules with this operation, we must
-register a (bogus) memory effect that also prevents this operation from
-being trivially dead during operation folding.&lt;/p>
-&lt;p>This operation also accepts operands, which act as boundaries between the
-logical units. This enforces separation of memref and affine optimizations
-between the subunits, preventing optimizations from removing the operand and
-combining the two separated regions. The operand can be thought of as an
-return value of the logical subunit.&lt;/p>
-&lt;p>Interfaces: &lt;code>MemoryEffectOpInterface (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{MemoryEffects::Write on ::mlir::SideEffects::DefaultResource}&lt;/code>&lt;/p>
-&lt;h4 id="operands-4">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>inputs&lt;/code>&lt;/td>
-&lt;td>variadic of any type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="secretyield-heirsecretyieldop">&lt;code>secret.yield&lt;/code> (heir::secret::YieldOp)&lt;/h3>
-&lt;p>&lt;em>Secret yield operation&lt;/em>&lt;/p>
-&lt;p>&lt;code>secret.yield&lt;/code> is a special terminator operation for blocks inside regions
-in &lt;code>secret&lt;/code> generic ops. It returns the cleartext value of the
-corresponding private computation to the immediately enclosing &lt;code>secret&lt;/code>
-generic op.&lt;/p>
-&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>HasParent&amp;lt;GenericOp&amp;gt;&lt;/code>, &lt;code>ReturnLike&lt;/code>, &lt;code>Terminator&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>RegionBranchTerminatorOpInterface&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-5">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>values&lt;/code>&lt;/td>
-&lt;td>variadic of any type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table></description></item><item><title>Docs: SecretizePasses</title><link>https://heir.dev/docs/passes/secretizepasses/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/passes/secretizepasses/</guid><description>
-&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h3 id="-secretize">&lt;code>-secretize&lt;/code>&lt;/h3>
-&lt;p>&lt;em>Adds secret argument attributes to entry function&lt;/em>&lt;/p>
-&lt;p>Adds a secret.secret attribute argument to each argument in the entry
-function of an MLIR module. By default, the function is &lt;code>main&lt;/code>. This may be
-overridden with the option -entry-function=top_level_func.&lt;/p>
-&lt;h4 id="options">Options&lt;/h4>
-&lt;pre tabindex="0">&lt;code>-entry-function : entry function of the module
-&lt;/code>&lt;/pre>&lt;h3 id="-wrap-generic">&lt;code>-wrap-generic&lt;/code>&lt;/h3>
-&lt;p>&lt;em>Wraps regions using secret args in secret.generic bodies&lt;/em>&lt;/p>
-&lt;p>This pass wraps function regions of &lt;code>func.func&lt;/code> that use secret arguments in
-&lt;code>secret.generic&lt;/code> bodies.&lt;/p>
-&lt;p>Secret arguments are annotated using a &lt;code>secret.secret&lt;/code> argument attribute.
-This pass converts these to secret types and then inserts a &lt;code>secret.generic&lt;/code>
-body to hold the functions region. The output type is also converted to a
-secret.&lt;/p>
-&lt;p>Example input:&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@main&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">})&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">100&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>addi &lt;span style="color:#000">%0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Output:&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@main&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>generic ins&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f57900">^bb0&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg1&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">):&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">100&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%2&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>addi &lt;span style="color:#000">%0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>yield &lt;span style="color:#000">%2&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div></description></item><item><title>Docs: SecretPasses</title><link>https://heir.dev/docs/passes/secretpasses/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/passes/secretpasses/</guid><description>
-&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h3 id="-secret-capture-generic-ambient-scope">&lt;code>-secret-capture-generic-ambient-scope&lt;/code>&lt;/h3>
-&lt;p>&lt;em>Capture the ambient scope used in a secret.generic&lt;/em>&lt;/p>
-&lt;p>For each value used in the body of a &lt;code>secret.generic&lt;/code> op, which is defined
-in the ambient scope outside the &lt;code>generic&lt;/code>, add it to the argument list of
-the &lt;code>generic&lt;/code>.&lt;/p>
-&lt;h3 id="-secret-distribute-generic">&lt;code>-secret-distribute-generic&lt;/code>&lt;/h3>
-&lt;p>&lt;em>Distribute &lt;code>generic&lt;/code> ops through their bodies.&lt;/em>&lt;/p>
-&lt;p>Converts &lt;code>generic&lt;/code> ops whose region contains many ops into smaller
-sequences of generic ops whose regions contain a single op, dropping the
-&lt;code>generic&lt;/code> part from any resulting &lt;code>generic&lt;/code> ops that have no
-&lt;code>secret.secret&lt;/code> inputs. If the op has associated regions, and the operands
-are not secret, then the generic is distributed recursively through the
-op&amp;rsquo;s regions as well.&lt;/p>
-&lt;p>This pass is intended to be used as part of a front-end pipeline, where a
-program that operates on a secret type annotates the input to a region as
-&lt;code>secret&lt;/code>, and then wraps the contents of the region in a single large
-&lt;code>secret.generic&lt;/code>, then uses this pass to simplify it.&lt;/p>
-&lt;p>The &lt;code>distribute-through&lt;/code> option allows one to specify a comma-separated
-list of op names (e.g., &lt;code>distribute-thorugh=&amp;quot;affine.for,scf.if&amp;quot;&lt;/code>), which
-limits the distribution to only pass through those ops. If unset, all ops
-are distributed through when possible.&lt;/p>
-&lt;h4 id="options">Options&lt;/h4>
-&lt;pre tabindex="0">&lt;code>-distribute-through : comma-separated list of ops that should be distributed through
-&lt;/code>&lt;/pre>&lt;h3 id="-secret-extract-generic-body">&lt;code>-secret-extract-generic-body&lt;/code>&lt;/h3>
-&lt;p>&lt;em>Extract the bodies of all generic ops into functions&lt;/em>&lt;/p>
-&lt;p>This pass extracts the body of all generic ops into functions, and
-replaces the generic bodies with call ops. Used as a sub-operation in
-some passes, and extracted into its own pass for testing purposes.&lt;/p>
-&lt;p>This pass works best when &lt;code>--secret-generic-absorb-constants&lt;/code> is run
-before it so that the extracted function contains any constants used
-in the generic op&amp;rsquo;s body.&lt;/p>
-&lt;h3 id="-secret-forget-secrets">&lt;code>-secret-forget-secrets&lt;/code>&lt;/h3>
-&lt;p>&lt;em>Convert secret types to standard types&lt;/em>&lt;/p>
-&lt;p>Drop the &lt;code>secret&amp;lt;...&amp;gt;&lt;/code> type from the IR, replacing it with the contained
-type and the corresponding cleartext computation.&lt;/p>
-&lt;h3 id="-secret-generic-absorb-constants">&lt;code>-secret-generic-absorb-constants&lt;/code>&lt;/h3>
-&lt;p>&lt;em>Copy constants into a secret.generic body&lt;/em>&lt;/p>
-&lt;p>For each constant value used in the body of a &lt;code>secret.generic&lt;/code> op, which is
-defined in the ambient scope outside the &lt;code>generic&lt;/code>, add it&amp;rsquo;s definition into
-the &lt;code>generic&lt;/code> body.&lt;/p>
-&lt;h3 id="-secret-generic-absorb-dealloc">&lt;code>-secret-generic-absorb-dealloc&lt;/code>&lt;/h3>
-&lt;p>&lt;em>Copy deallocs of internal memrefs into a secret.generic body&lt;/em>&lt;/p>
-&lt;p>For each memref allocated and used only within a body of a &lt;code>secret.generic&lt;/code>
-op, add it&amp;rsquo;s dealloc of the memref into its &lt;code>generic&lt;/code> body.&lt;/p>
-&lt;h3 id="-secret-merge-adjacent-generics">&lt;code>-secret-merge-adjacent-generics&lt;/code>&lt;/h3>
-&lt;p>&lt;em>Merge two adjacent generics into a single generic&lt;/em>&lt;/p>
-&lt;p>This pass merges two immedaitely sequential generics into a single
-generic. Useful as a sub-operation in some passes, and extracted into
-its own pass for testing purposes.&lt;/p></description></item></channel></rss>
+&lt;p>NOTE: This method &lt;em>must&lt;/em> be implemented by the user.&lt;/p></description></item><item><title>: Search Results</title><link>https://heir.dev/search/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/search/</guid><description/></item></channel></rss>
