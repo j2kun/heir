@@ -56,7 +56,7 @@ class HeirOptMagic(BinaryMagic):
             line: The options to pass to heir-opt.
             cell: The input to pass to heir-opt.
         """
-        return self.run_binary(line, cell)
+        self.run_binary(line, cell)
 
 
 @magics_class
@@ -77,4 +77,4 @@ class HeirTranslateMagic(BinaryMagic):
             line: The options to pass to heir-translate.
             cell: The input to pass to heir-translate.
         """
-        return self.run_binary(line, cell)
+        self.run_binary(line, cell)
