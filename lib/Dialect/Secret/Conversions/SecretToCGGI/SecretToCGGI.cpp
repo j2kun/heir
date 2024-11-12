@@ -585,8 +585,8 @@ struct SecretToCGGI : public impl::SecretToCGGIBase<SecretToCGGI> {
              SecretGenericOpOrConversion, SecretGenericOpXNorConversion,
              SecretGenericOpXorConversion, ConvertSecretCastOp>(typeConverter,
                                                                 context);
-    target
-        .addIllegalOp<comb::TruthTableOp, secret::CastOp, secret::GenericOp>();
+    target.addIllegalOp<comb::TruthTableOp, secret::CastOp, secret::GenericOp,
+                        secret::ConcealOp>();
     target.addDynamicallyLegalOp<memref::StoreOp>([&](memref::StoreOp op) {
       // Legal only when the memref element type matches the stored
       // type.
