@@ -1,19 +1,17 @@
 """Compute statistics about (non-Googler, non-bot) authors of commits."""
 
-import requests
-import sys
 from collections import defaultdict
 from datetime import datetime
+import requests
+import sys
+import time
 
 # Constants
 GITHUB_API_URL = "https://api.github.com"
 REPO = "google/heir"  # replace with the desired repo
 # TOKEN = "your_github_token_here"  # Replace with your personal access token (if needed)
 
-monthly_authors = defaultdict(set)
-author_commit_count = defaultdict(int)
-monthly_commits = defaultdict(int)
-total_commits = 0
+stats = []
 
 # Define email patterns to exclude
 excluded_patterns = ["google.com", "j2kun", "kun.jeremy", "dependabot"]
@@ -28,8 +26,11 @@ def fetch_commits(repo):
     # headers = {"Authorization": f"token {TOKEN}"}
     params = {"per_page": 100}  # Fetch up to 100 commits per page
     commits = []
+    page = 0
 
     while url:
+        print(f"Fetching page {page} of commits...")
+        time.sleep(1)
         response = requests.get(url, params=params)
         response.raise_for_status()  # Raise an error if the request failed
         data = response.json()
@@ -38,15 +39,15 @@ def fetch_commits(repo):
         # Check if there's another page of results
         if "next" in response.links:
             url = response.links["next"]["url"]
+            page += 1
         else:
             url = None
 
     return commits
 
-# Function to process commits
-def process_commits(commits):
-    global total_commits
-    global monthly_commits
+
+def extract_commits(commits):
+    all_commits = []
     for commit in commits:
         commit_data = commit["commit"]
         author_data = commit_data.get("author", {})
@@ -58,36 +59,57 @@ def process_commits(commits):
             continue
 
         date = datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%SZ")
-        year_month = date.strftime("%Y-%m")  # e.g., '2024-02'
+        all_commits.append({
+            "date": date,
+            "author": name,
+            "email": email,
+            "message": commit_data.get("message").split("\n")[0]
+        })
 
-        monthly_authors[year_month].add(name)
+    return all_commits
+
+
+def compute_stats(commits):
+    monthly_authors = defaultdict(set)
+    author_commit_count = defaultdict(int)
+    monthly_commits = defaultdict(int)
+
+    for commit in commits:
+        name = commit["author"]
+        date = commit["date"]
+        year_month = date.strftime("%Y-%m")
+
+        monthly_authors[year_month].add()
         monthly_commits[year_month] += 1
         author_commit_count[name] += 1
-        total_commits += 1
+
+    stats = []
+    for date, authors in monthly_authors.items():
+        stats.append({
+            "date": date,
+            "distinct authors": len(authors),
+            "commits": monthly_commits[date]
+        })
+
+    return stats
 
 
 if __name__ == "__main__":
     try:
-        commits = fetch_commits(REPO)
-        process_commits(commits)
+        commits = extract_commits(fetch_commits(REPO))
+        stats = compute_stats(commits)
     except Exception as e:
         print(f"Error fetching commits: {e}")
         sys.exit(1)
 
-    monthly_distinct_authors = {
-        month: len(authors) for month, authors in monthly_authors.items()
-    }
+    import csv
+    with open("all_commits.csv", "w") as f:
+        writer = csv.DictWriter(f, fieldnames=["date", "author", "email", "message"])
+        writer.writeheader()
+        writer.writerows(commits)
 
-    print("Monthly distinct commit author count:")
-    for month, count in monthly_distinct_authors.items():
-        print(f"{month}: {count}")
-
-    print("\nTotal commits by author:")
-    for author, count in author_commit_count.items():
-        print(f"{author}: {count}")
-
-    print("\nTotal commits by month:")
-    for month, count in monthly_commits.items():
-        print(f"{month}: {count}")
-
-    print(f"\nTotal commits: {total_commits}")
+    import csv
+    with open("monthly_author_stats.csv", "w") as f:
+        writer = csv.DictWriter(f, fieldnames=["date", "distinct authors", "commits"])
+        writer.writeheader()
+        writer.writerows(stats)
