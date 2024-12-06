@@ -21,6 +21,17 @@ class EndToEndTest(absltest.TestCase):
         result = foo.decrypt_result(result_enc)
         self.assertEqual(-15, result)
 
+    def test_branch(self):
+        @compile(backend="openfhe")
+        def foo(a, b):
+            if a < b:
+                return a
+            else:
+                return b - 1
+
+        self.assertEqual(3, foo(3, 4))
+        self.assertEqual(2, foo(4, 3))
+
 
 if __name__ == "__main__":
     absltest.main()
