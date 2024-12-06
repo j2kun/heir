@@ -9,7 +9,9 @@ class PipelineTest(absltest.TestCase):
         def foo(a, b):
             return a * a - b * b
 
-        _heir_foo = run_compiler(foo, openfhe_config=openfhe_config.from_os_env())
+        _heir_foo = run_compiler(
+            foo, openfhe_config=openfhe_config.from_os_env()
+        ).module
 
         cc = _heir_foo.foo__generate_crypto_context()
         kp = cc.KeyGen()
