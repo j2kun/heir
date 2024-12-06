@@ -52,7 +52,7 @@ class OpenfheClientInterface(CompilationResultInterface):
             self.crypto_context, self.keypair.secretKey
         )
 
-    def decrypt_result(self, result, crypto_context=None, secret_key=None):
+    def decrypt_result(self, result, *, crypto_context=None, secret_key=None):
         return self.compilation_result.result_dec_func(
             crypto_context or self.crypto_context,
             result,
@@ -64,7 +64,7 @@ class OpenfheClientInterface(CompilationResultInterface):
             arg_name = key[len("encrypt_") :]
             fn = self.compilation_result.arg_enc_funcs[arg_name]
 
-            def wrapper(arg, crypto_context=None, public_key=None):
+            def wrapper(arg, *, crypto_context=None, public_key=None):
                 return fn(
                     crypto_context or self.crypto_context,
                     arg,
@@ -98,9 +98,7 @@ class OpenfheClientInterface(CompilationResultInterface):
             )
 
         args_encrypted = [
-            getattr(self, f"encrypt_{arg_name}")(
-                self.crypto_context, arg, self.keypair.publicKey
-            )
+            getattr(self, f"encrypt_{arg_name}")(arg)
             for arg_name, arg in zip(arg_names, args)
         ]
         result_encrypted = getattr(self, self.compilation_result.func_name)(
