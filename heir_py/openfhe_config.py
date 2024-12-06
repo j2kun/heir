@@ -1,7 +1,6 @@
 """Configuration of OpenFHE backend."""
 
 import os
-import subprocess
 from dataclasses import dataclass
 
 
@@ -82,8 +81,8 @@ def from_os_env(debug=False) -> OpenFHEConfig:
         include_dirs = [os.path.join(path_base, dir) for dir in include_dirs]
 
     return OpenFHEConfig(
-        include_dirs=include_dirs,
-        lib_dir=lib_dir,
-        link_libs=link_libs,
+        include_dirs=include_dirs or DEFAULT_INSTALLED_OPENFHE_CONFIG.include_dirs,
+        lib_dir=lib_dir or DEFAULT_INSTALLED_OPENFHE_CONFIG.lib_dir,
+        link_libs=link_libs or DEFAULT_INSTALLED_OPENFHE_CONFIG.link_libs,
         include_type=os.environ.get("OPENFHE_INCLUDE_TYPE", "install-relative"),
     )

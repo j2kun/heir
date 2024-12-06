@@ -1,5 +1,6 @@
 """The compilation pipeline."""
 
+from dataclasses import dataclass
 from pathlib import Path
 import importlib
 import sys
@@ -14,10 +15,34 @@ from heir_py.heir_backend import HeirOptBackend, HeirTranslateBackend
 from heir_py.clang import ClangBackend
 
 
+@dataclass
+class CompilationResult:
+    # The module object containing the compiled functions
+    module: object
+
+    # The function name used to generate the various compiled functions
+    func_name: str
+
+    # A list of arg names (in order)
+    arg_names: list[str]
+
+    # A mapping from argument name to the compiled encryption function
+    arg_enc_funcs: dict[str, object]
+
+    # The compiled decryption function for the function result
+    result_dec_func: object
+
+    # The main compiled function
+    main_func: object
+
+    # Backend setup functions, if any
+    setup_funcs: dict[str, object]
+
+
 def run_compiler(
     function,
     openfhe_config: OpenFHEConfig = DEFAULT_INSTALLED_OPENFHE_CONFIG
-):
+) -> CompilationResult:
     """Run the compiler."""
     # The temporary workspace dir is so that heir-opt, heir-translate, and
     # clang can have places to write their output files. It is cleaned up once
@@ -103,4 +128,24 @@ def run_compiler(
         importlib.invalidate_caches()
         bound_module = importlib.import_module(module_name)
 
-    return bound_module
+    result = CompilationResult(
+        module=bound_module,
+        func_name=func_name,
+        arg_names=func_id.arg_names,
+        arg_enc_funcs={
+            arg_name: getattr(bound_module, f"{func_name}__encrypt__arg{i}")
+            for i, arg_name in enumerate(func_id.arg_names)
+        },
+        result_dec_func=getattr(bound_module, f"{func_name}__decrypt__result0"),
+        main_func=getattr(bound_module, func_name),
+        setup_funcs={
+            "generate_crypto_context": getattr(
+                bound_module, f"{func_name}__generate_crypto_context"
+            ),
+            "configure_crypto_context": getattr(
+                bound_module, f"{func_name}__configure_crypto_context"
+            ),
+        },
+    )
+
+    return result

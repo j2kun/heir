@@ -9,7 +9,9 @@ class PipelineTest(absltest.TestCase):
         def foo(a, b):
             return a * a - b * b
 
-        _heir_foo = run_compiler(foo, openfhe_config=openfhe_config.from_os_env())
+        _heir_foo = run_compiler(
+            foo, openfhe_config=openfhe_config.from_os_env()
+        ).module
 
         cc = _heir_foo.foo__generate_crypto_context()
         kp = cc.KeyGen()
@@ -20,30 +22,6 @@ class PipelineTest(absltest.TestCase):
         res = _heir_foo.foo__decrypt__result0(cc, res_enc, kp.secretKey)
 
         self.assertEqual(-15, res)
-
-    # def test_branch(self):
-    #     def foo(a, b):
-    #         if a < b:
-    #             return a
-    #         else:
-    #             return b - 1
-
-    #     result = run_compiler(foo)
-    #     self.assertEqual(
-    #         result,
-    #         """func.func @foo(%a: i64, %b: i64) -> (i64) {
-    #   ^bb0:
-    #     %0 = arith.cmpi slt, %a, %b : i64
-    #     cf.cond_br %0, ^bb14, ^bb18
-    #   ^bb14:
-    #     func.return %a : i64
-    #   ^bb18:
-    #     %1 = arith.constant 1 : i64
-    #     %2 = arith.subi %b, %1 : i64
-    #     func.return %2 : i64
-    # }
-    # """,
-    #     )
 
 
 if __name__ == "__main__":
