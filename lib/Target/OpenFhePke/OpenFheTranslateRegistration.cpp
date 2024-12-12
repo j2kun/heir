@@ -1,9 +1,13 @@
 #include "lib/Target/OpenFhePke/OpenFheTranslateRegistration.h"
 
+#include <string>
+
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
+#include "lib/Dialect/RNS/IR/RNSDialect.h"
+#include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Target/OpenFhePke/OpenFhePkeEmitter.h"
 #include "lib/Target/OpenFhePke/OpenFhePkeHeaderEmitter.h"
 #include "lib/Target/OpenFhePke/OpenFhePkePybindEmitter.h"
@@ -78,7 +82,9 @@ void registerToOpenFhePkeTranslation() {
         registry.insert<arith::ArithDialect, func::FuncDialect,
                         openfhe::OpenfheDialect, lwe::LWEDialect,
                         ::mlir::heir::polynomial::PolynomialDialect,
-                        tensor::TensorDialect, mod_arith::ModArithDialect>();
+                        tensor::TensorDialect, mod_arith::ModArithDialect,
+                        rns::RNSDialect>();
+        rns::registerExternalRNSTypeInterfaces(registry);
       });
 }
 
@@ -94,9 +100,10 @@ void registerToOpenFhePkeHeaderTranslation() {
       [](DialectRegistry &registry) {
         registry.insert<arith::ArithDialect, func::FuncDialect,
                         tensor::TensorDialect, openfhe::OpenfheDialect,
-                        lwe::LWEDialect,
+                        lwe::LWEDialect, rns::RNSDialect,
                         ::mlir::heir::polynomial::PolynomialDialect,
                         mod_arith::ModArithDialect>();
+        rns::registerExternalRNSTypeInterfaces(registry);
       });
 }
 
@@ -116,7 +123,8 @@ void registerToOpenFhePkePybindTranslation() {
                         tensor::TensorDialect, openfhe::OpenfheDialect,
                         lwe::LWEDialect,
                         ::mlir::heir::polynomial::PolynomialDialect,
-                        mod_arith::ModArithDialect>();
+                        mod_arith::ModArithDialect, rns::RNSDialect>();
+        rns::registerExternalRNSTypeInterfaces(registry);
       });
 }
 

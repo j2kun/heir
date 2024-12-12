@@ -1,10 +1,15 @@
-from heir_py.pipeline import run_compiler
+"""Example of HEIR Python usage."""
+
+from heir_py import pipeline
+
 
 def foo(a, b):
-    return a * a - b * b
+  """An example function."""
+  return a * a - b * b
+
 
 # to replace with decorator
-_heir_foo = run_compiler(foo)
+_heir_foo = pipeline.run_compiler(foo)
 
 cc = _heir_foo.foo__generate_crypto_context()
 kp = cc.KeyGen()

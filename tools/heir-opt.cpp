@@ -4,6 +4,7 @@
 #include <string>
 
 #include "lib/Dialect/BGV/Conversions/BGVToLWE/BGVToLWE.h"
+#include "lib/Dialect/BGV/Conversions/BGVToLattigo/BGVToLattigo.h"
 #include "lib/Dialect/BGV/Conversions/BGVToOpenfhe/BGVToOpenfhe.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/CGGI/Conversions/CGGIToJaxite/CGGIToJaxite.h"
@@ -18,7 +19,9 @@
 #include "lib/Dialect/LWE/Conversions/LWEToPolynomial/LWEToPolynomial.h"
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/Transforms/Passes.h"
+#include "lib/Dialect/Lattigo/IR/LattigoDialect.h"
 #include "lib/Dialect/LinAlg/Conversions/LinalgToTensorExt/LinalgToTensorExt.h"
+#include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.h"
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
@@ -56,6 +59,7 @@
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
+#include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/StraightLineVectorizer/StraightLineVectorizer.h"
 #include "lib/Transforms/TensorToScalars/TensorToScalars.h"
@@ -81,6 +85,7 @@
 #include "mlir/include/mlir/Dialect/Bufferization/Transforms/FuncBufferizableOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Bufferization/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/ControlFlow/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/EmitC/IR/EmitC.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/Extensions/AllExtensions.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/LLVMIR/LLVMDialect.h"  // from @llvm-project
@@ -104,6 +109,10 @@
 #include "lib/Transforms/YosysOptimizer/YosysOptimizer.h"
 #endif
 
+// This comment includes internal conversions
+// This comment includes internal dialects
+// This comment includes internal pipelines
+
 using namespace mlir;
 using namespace tosa;
 using namespace heir;
@@ -112,13 +121,17 @@ using mlir::func::FuncOp;
 int main(int argc, char **argv) {
   mlir::DialectRegistry registry;
 
+  // This comment inserts internal dialects
+
   registry.insert<mod_arith::ModArithDialect>();
   registry.insert<bgv::BGVDialect>();
   registry.insert<ckks::CKKSDialect>();
   registry.insert<cggi::CGGIDialect>();
   registry.insert<comb::CombDialect>();
   registry.insert<jaxite::JaxiteDialect>();
+  registry.insert<lattigo::LattigoDialect>();
   registry.insert<lwe::LWEDialect>();
+  registry.insert<mgmt::MgmtDialect>();
   registry.insert<random::RandomDialect>();
   registry.insert<openfhe::OpenfheDialect>();
   registry.insert<rns::RNSDialect>();
@@ -129,6 +142,7 @@ int main(int argc, char **argv) {
 
   // Add expected MLIR dialects to the registry.
   registry.insert<LLVM::LLVMDialect>();
+  registry.insert<::mlir::emitc::EmitCDialect>();
   registry.insert<::mlir::linalg::LinalgDialect>();
   registry.insert<TosaDialect>();
   registry.insert<affine::AffineDialect>();
@@ -206,6 +220,7 @@ int main(int argc, char **argv) {
   openfhe::registerOpenfhePasses();
   registerElementwiseToAffinePasses();
   registerSecretizePasses();
+  registerSecretInsertMgmtPasses();
   registerFullLoopUnrollPasses();
   registerConvertIfToSelectPasses();
   registerConvertSecretForToStaticForPasses();
@@ -245,11 +260,13 @@ int main(int argc, char **argv) {
   registerTosaToBooleanTfhePipeline(yosysRunfilesEnvPath, abcEnvPath);
   registerTosaToBooleanFpgaTfhePipeline(yosysRunfilesEnvPath, abcEnvPath);
   registerTosaToJaxitePipeline(yosysRunfilesEnvPath, abcEnvPath);
+  // Register internal pipeline
 #endif
 
   // Dialect conversion passes in HEIR
   mod_arith::registerModArithToArithPasses();
   bgv::registerBGVToLWEPasses();
+  bgv::registerBGVToLattigoPasses();
   bgv::registerBGVToOpenfhePasses();
   ckks::registerCKKSToOpenfhePasses();
   registerSecretToCGGIPasses();
@@ -259,6 +276,7 @@ int main(int argc, char **argv) {
   registerCGGIToJaxitePasses();
   registerCGGIToTfheRustPasses();
   registerCGGIToTfheRustBoolPasses();
+  // This comement registers internal passes
   registerSecretToBGVPasses();
   registerSecretToCKKSPasses();
   mlir::heir::tosa::registerTosaToSecretArithPasses();

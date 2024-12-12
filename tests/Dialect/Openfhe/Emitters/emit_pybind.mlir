@@ -2,7 +2,12 @@
 
 // CHECK: #include <pybind11/pybind11.h>
 // CHECK: #include <pybind11/stl.h>
-// CHECK: #include "foo.h"
+
+// A minor hack to avoid copybara mangling this transformation when it is synced
+// internally to Google.
+// CHECK: #include
+// CHECK-SAME: "foo.h"
+
 // CHECK: using namespace lbcrypto;
 // CHECK: namespace py = pybind11;
 // CHECK: void bind_common(py::module &m)

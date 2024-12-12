@@ -1,5 +1,7 @@
 #include "lib/Target/OpenFhePke/OpenFhePkePybindEmitter.h"
 
+#include <string>
+
 #include "lib/Target/OpenFhePke/OpenFhePkeTemplates.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"   // from @llvm-project
