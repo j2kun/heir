@@ -12,6 +12,7 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 class TensorExt_Op<string mnemonic, list<Trait> traits = []> :
         Op<TensorExt_Dialect, mnemonic, traits> {
   let cppNamespace = "::mlir::heir::tensor_ext";
+  let assemblyFormat = "operands attr-dict `:` type($output)";
 }
 
 def TensorExt_RotateOp : TensorExt_Op<"rotate", [Pure, AllTypesMatch<["tensor", "output"]>]> {
@@ -46,6 +47,16 @@ def TensorExt_RotateOp : TensorExt_Op<"rotate", [Pure, AllTypesMatch<["tensor", 
   let assemblyFormat = "operands attr-dict `:` qualified(type($tensor)) `,` type($shift)";
   let hasCanonicalizer = 1;
   let hasVerifier = 1;
+}
+
+def TensorExt_ConvertLayoutOp : TensorExt_Op<"convert_layout", [Pure, AllTypesMatch<["tensor", "output"]>]> {
+  let summary = "Convert from one layout to another.";
+  let description = [{
+    // FIXME: add descr
+  }];
+
+  let arguments = (ins AnyTensor:$tensor, Builtin_AffineMapAttr:$from_layout, Builtin_AffineMapAttr:$to_layout);
+  let results = (outs AnyTensor:$output);
 }
 
 #endif  // LIB_DIALECT_TENSOREXT_IR_TENSOREXTOPS_TD_
