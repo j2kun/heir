@@ -17,19 +17,26 @@ def Secret : Secret_Type<"Secret", "secret"> {
 
   let description = [{
     A generic wrapper around another MLIR type, representing an encrypted value
-    but not specifying the manner of encryption. This is useful in HEIR because
-    the compiler may choose various details of the FHE scheme based on the
-    properties of the input program, the backend target hardware, and cost
-    models of the various passes.
+    but not specifying the manner of encryption.
+
+    When the wrapped type is a tensor, a layout attribute specifies how the
+    tensor's entries are mapped to one or more ciphertexts, and this may be
+    managed by compiler-internal optimization passes.
   }];
 
-  let parameters = (ins "Type":$valueType);
+  let parameters = (ins
+    "Type":$valueType,
+    OptionalParameter<"Attribute">:$layout
+  );
   let builders = [
-    TypeBuilderWithInferredContext<(ins "Type":$valueType), [{
-      return $_get(valueType.getContext(), valueType);
+    TypeBuilderWithInferredContext<(ins
+        "Type":$valueType,
+        CArg<"Attribute", "{}">:$layout
+    ), [{
+      return $_get(valueType.getContext(), valueType, layout);
     }]>
   ];
-  let assemblyFormat = "`<` $valueType `>`";
+  let assemblyFormat = "`<` $valueType (`,` $layout^)? `>`";
 }
 
 #endif  // LIB_DIALECT_SECRET_IR_SECRETTYPES_TD_
