@@ -61,6 +61,7 @@
 #include "lib/Transforms/ForwardInsertToExtract/ForwardInsertToExtract.h"
 #include "lib/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
+#include "lib/Transforms/LayoutPropagation/LayoutPropagation.h"
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
@@ -273,6 +274,7 @@ int main(int argc, char **argv) {
   registerStraightLineVectorizerPasses();
   registerUnusedMemRefPasses();
   registerOptimizeRelinearizationPasses();
+  registerLayoutPropagationPasses();
   registerLinalgCanonicalizationsPasses();
   registerTensorToScalarsPasses();
   // Register yosys optimizer pipeline if configured.
