@@ -12,7 +12,7 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 class TensorExt_Op<string mnemonic, list<Trait> traits = []> :
         Op<TensorExt_Dialect, mnemonic, traits> {
   let cppNamespace = "::mlir::heir::tensor_ext";
-  let assemblyFormat = "operands attr-dict `:` type($output)";
+  let assemblyFormat = "operands attr-dict `:` functional-type(operands, results)";
 }
 
 def TensorExt_RotateOp : TensorExt_Op<"rotate", [Pure, AllTypesMatch<["tensor", "output"]>]> {
@@ -54,9 +54,21 @@ def TensorExt_ConvertLayoutOp : TensorExt_Op<"convert_layout", [Pure, AllTypesMa
   let description = [{
     // FIXME: add descr
   }];
-
+  let assemblyFormat = "operands attr-dict `:` type($output)";
   let arguments = (ins AnyTensor:$tensor, Builtin_AffineMapAttr:$from_layout, Builtin_AffineMapAttr:$to_layout);
   let results = (outs AnyTensor:$output);
+}
+
+def TensorExt_SumOp : TensorExt_Op<"sum", [Pure]> {
+  let summary = "Sum along one dimension of a tensor.";
+  let description = [{
+    This op can be thought of as a special case of `linglg.reduce`,
+    but more concise.
+  }];
+  let arguments = (ins AnyTensor:$tensor, IndexAttr:$dim);
+  let results = (outs AnyTensor:$output);
+  let assemblyFormat = "$tensor `,` $dim attr-dict `:` type($tensor) `->` type($output)";
+  let hasVerifier = 1;
 }
 
 #endif  // LIB_DIALECT_TENSOREXT_IR_TENSOREXTOPS_TD_
