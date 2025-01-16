@@ -247,24 +247,26 @@ def Secret_GenericOp : Secret_Op<"generic", [
     }
 
     //===------------------------------------------------------------------===//
-    // Argument Attributes
+    // Argument/Result Attributes
     //===------------------------------------------------------------------===//
 
     /// Return the specified attribute, if present, for the argument at 'index',
     /// null otherwise.
-    Attribute getArgAttr(unsigned index, StringRef name) {
-      std::string argName = "arg" + std::to_string(index);
+    Attribute getArgOrResultAttr(unsigned index, StringRef name, bool isArg = true) {
+      std::string prefix = isArg ? "arg" : "result";
+      std::string argName = prefix + std::to_string(index);
       auto argDict = this->getOperation()->getAttrOfType<DictionaryAttr>(argName);
       return argDict ? argDict.get(name) : nullptr;
     }
 
     /// If the an attribute exists with the specified name, change it to the new
     /// value. Otherwise, add a new attribute with the specified name/value.
-    void setArgAttr(unsigned index, StringRef name, Attribute value) {
+    void setArgOrResultAttr(unsigned index, StringRef name, Attribute value, bool isArg = true) {
       llvm::MapVector<StringAttr, Attribute> newAttrMap;
       newAttrMap.insert({StringAttr::get(getContext(), name), value});
 
-      std::string argName = "arg" + std::to_string(index);
+      std::string prefix = isArg ? "arg" : "result";
+      std::string argName = prefix + std::to_string(index);
       auto argDict = this->getOperation()->getAttrOfType<DictionaryAttr>(argName);
       if (argDict) {
         for (const auto &attr : argDict) {
@@ -282,8 +284,9 @@ def Secret_GenericOp : Secret_Op<"generic", [
 
     // remove the specified attribute, if present, for the argument at 'index',
     // return the removed attribute, null otherwise.
-    Attribute removeArgAttr(unsigned index, StringRef name) {
-      std::string argName = "arg" + std::to_string(index);
+    Attribute removeArgOrResultAttr(unsigned index, StringRef name, bool isArg = true) {
+      std::string prefix = isArg ? "arg" : "result";
+      std::string argName = prefix + std::to_string(index);
       auto argDict = this->getOperation()->getAttrOfType<DictionaryAttr>(argName);
       if (!argDict)
         return nullptr;
@@ -304,6 +307,30 @@ def Secret_GenericOp : Secret_Op<"generic", [
         this->getOperation()->setAttr(argName, DictionaryAttr::get(getContext(), newAttrs));
       }
       return attr;
+    }
+
+    Attribute getArgAttr(unsigned index, StringRef name) {
+      return getArgOrResultAttr(index, name, true);
+    }
+
+    void setArgAttr(unsigned index, StringRef name, Attribute value) {
+      setArgOrResultAttr(index, name, value, true);
+    }
+
+    Attribute removeArgAttr(unsigned index, StringRef name) {
+      return removeArgOrResultAttr(index, name, true);
+    }
+
+    Attribute getResultAttr(unsigned index, StringRef name) {
+      return getArgOrResultAttr(index, name, false);
+    }
+
+    void setResultAttr(unsigned index, StringRef name, Attribute value) {
+      setArgOrResultAttr(index, name, value, false);
+    }
+
+    Attribute removeResultAttr(unsigned index, StringRef name) {
+      return removeArgOrResultAttr(index, name, false);
     }
 
     //===------------------------------------------------------------------===//
