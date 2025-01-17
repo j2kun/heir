@@ -39,8 +39,13 @@ struct IfToSelectConversion : OpRewritePattern<scf::IfOp> {
 
   LogicalResult matchAndRewrite(scf::IfOp ifOp,
                                 PatternRewriter &rewriter) const override {
-    bool secret = isSecret(ifOp.getOperand(), solver);
-    if (!secret) return failure();
+    auto *lattice = solver->lookupState<SecretnessLattice>(ifOp.getOperand());
+    Secretness secretness = lattice ? lattice->getValue() : Secretness();
+
+    // Convert ops with "secret" and, conservatively, "unknown" (uninitialized)
+    // conditions but skip conversion if the condition is known to be non-secret
+    if (secretness.isInitialized() && !secretness.getSecretness())
+      return failure();
 
     // Hoist instructions in the 'then' and 'else' regions
     auto thenOps = ifOp.getThenRegion().getOps();
