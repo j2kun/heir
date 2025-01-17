@@ -52,7 +52,11 @@ def TensorExt_RotateOp : TensorExt_Op<"rotate", [Pure, AllTypesMatch<["tensor", 
 def TensorExt_ConvertLayoutOp : TensorExt_Op<"convert_layout", [Pure, AllTypesMatch<["tensor", "output"]>]> {
   let summary = "Convert from one layout to another.";
   let description = [{
-    // FIXME: add descr
+    This op represents the conversion of a tensor from one packed layout to
+    another. This is implemented via a "shift network" of ciphertext rotations,
+    plaintext masks (ciphertext-plaintext multiplications), and additions.
+
+    This op is inserted by layout selection passes.
   }];
   let assemblyFormat = "operands attr-dict `:` type($output)";
   let arguments = (ins AnyTensor:$tensor, Builtin_AffineMapAttr:$from_layout, Builtin_AffineMapAttr:$to_layout);
