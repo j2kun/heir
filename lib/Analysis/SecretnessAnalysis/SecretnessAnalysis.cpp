@@ -19,7 +19,7 @@ namespace heir {
 
 void SecretnessAnalysis::setToEntryState(SecretnessLattice *lattice) {
   auto operand = lattice->getAnchor();
-  bool isSecret = isa<secret::SecretType>(operand.getType());
+  bool secretness = isa<secret::SecretType>(operand.getType());
 
   Operation *operation = nullptr;
   // Get defining operation for operand
@@ -34,7 +34,7 @@ void SecretnessAnalysis::setToEntryState(SecretnessLattice *lattice) {
   if (auto genericOp = dyn_cast<secret::GenericOp>(*operation)) {
     if (OpOperand *genericOperand =
             genericOp.getOpOperandForBlockArgument(operand)) {
-      isSecret = isa<secret::SecretType>(genericOperand->get().getType());
+      secretness = isa<secret::SecretType>(genericOperand->get().getType());
     }
   }
 
@@ -48,7 +48,7 @@ void SecretnessAnalysis::setToEntryState(SecretnessLattice *lattice) {
                 blockArgs.begin();
 
     // Check if it has secret type
-    isSecret = isa<secret::SecretType>(funcOp.getArgumentTypes()[index]);
+    secretness = isa<secret::SecretType>(funcOp.getArgumentTypes()[index]);
 
     // check if it is annotated as {secret.secret}
     auto attrs = funcOp.getArgAttrs();
@@ -56,8 +56,8 @@ void SecretnessAnalysis::setToEntryState(SecretnessLattice *lattice) {
       auto arr = attrs->getValue();
       if (auto dictattr = dyn_cast<DictionaryAttr>(arr[index])) {
         for (auto attr : dictattr) {
-          isSecret =
-              isSecret ||
+          secretness =
+              secretness ||
               attr.getName() == secret::SecretDialect::kArgSecretAttrName.str();
           break;
         }
@@ -65,7 +65,7 @@ void SecretnessAnalysis::setToEntryState(SecretnessLattice *lattice) {
     }
   }
 
-  propagateIfChanged(lattice, lattice->join(Secretness(isSecret)));
+  propagateIfChanged(lattice, lattice->join(Secretness(secretness)));
 }
 
 LogicalResult SecretnessAnalysis::visitOperation(
@@ -160,10 +160,6 @@ void getSecretOperands(Operation *op,
       secretOperands.push_back(&operand);
     }
   }
-}
-
-bool isSecret(Value value, DataFlowSolver *solver) {
-  return isSecret({value}, solver);
 }
 
 }  // namespace heir

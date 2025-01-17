@@ -88,10 +88,7 @@ bool isTensorInSlots(Operation *top, DataFlowSolver *solver, int slotNumber) {
 void annotateTensorExtractAsNotSlotExtract(Operation *top,
                                            DataFlowSolver *solver) {
   top->walk([&](tensor::ExtractOp extractOp) {
-    auto secretness =
-        solver->lookupState<SecretnessLattice>(extractOp.getOperand(0))
-            ->getValue();
-    if (secretness.isInitialized() && secretness.getSecretness()) {
+    if (isSecret(extractOp.getOperand(0), solver)) {
       extractOp->setAttr("slot_extract",
                          BoolAttr::get(extractOp.getContext(), false));
     }
