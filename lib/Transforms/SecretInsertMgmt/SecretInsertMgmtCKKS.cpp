@@ -62,9 +62,8 @@ bool isTensorInSlots(Operation *top, DataFlowSolver *solver, int slotNumber) {
   LogicalResult result = walkAndValidateValues(
       top,
       [&](Value value) {
-        auto secretness =
-            solver->lookupState<SecretnessLattice>(value)->getValue();
-        if (secretness.isInitialized() && secretness.getSecretness()) {
+        auto secret = isSecret(value, solver);
+        if (secret) {
           auto tensorTy = dyn_cast<RankedTensorType>(value.getType());
           if (tensorTy) {
             // TODO(#913): Multidimensional tensors with a single non-unit

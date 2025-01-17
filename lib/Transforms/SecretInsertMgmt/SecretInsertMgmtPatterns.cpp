@@ -35,9 +35,8 @@ LogicalResult MultRelinearize<MulOp>::matchAndRewrite(
 
   // if mul const, skip
   for (auto operand : mulOp.getOperands()) {
-    auto secretness =
-        solver->lookupState<SecretnessLattice>(operand)->getValue();
-    if (!secretness.isInitialized() || !secretness.getSecretness()) {
+    auto secret = isSecret(operand, solver);
+    if (!secret) {
       return success();
     }
   }
