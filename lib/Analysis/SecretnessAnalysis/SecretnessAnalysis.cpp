@@ -133,7 +133,7 @@ void annotateSecretness(Operation *top, DataFlowSolver *solver) {
   });
 }
 
-bool ensureSecretness(Value value, DataFlowSolver *solver) {
+bool isSecret(Value value, DataFlowSolver *solver) {
   auto *lattice = solver->lookupState<SecretnessLattice>(value);
   if (!lattice) {
     return false;
@@ -144,23 +144,26 @@ bool ensureSecretness(Value value, DataFlowSolver *solver) {
   return lattice->getValue().getSecretness();
 }
 
-bool ensureSecretness(ValueRange values, DataFlowSolver *solver) {
+bool isSecret(ValueRange values, DataFlowSolver *solver) {
   if (values.empty()) {
     return false;
   }
-  return std::all_of(values.begin(), values.end(), [&](Value value) {
-    return ensureSecretness(value, solver);
-  });
+  return std::all_of(values.begin(), values.end(),
+                     [&](Value value) { return isSecret(value, solver); });
 }
 
 void getSecretOperands(Operation *op,
                        SmallVectorImpl<OpOperand *> &secretOperands,
                        DataFlowSolver *solver) {
   for (auto &operand : op->getOpOperands()) {
-    if (ensureSecretness(operand.get(), solver)) {
+    if (isSecret(operand.get(), solver)) {
       secretOperands.push_back(&operand);
     }
   }
+}
+
+bool isSecret(Value value, DataFlowSolver *solver) {
+  return isSecret({value}, solver);
 }
 
 }  // namespace heir
