@@ -52,11 +52,13 @@ class ContextAwareTypeConverter {
   // returned Attribute is never nullptr.
   virtual FailureOr<Attribute> getContextualAttr(Value value) const = 0;
 
-  // Get the attribute for a given input of a function. Since the function may
-  // be a declaration, it may not have any SSA value with which to use
-  // getContextualAttr(Value) above,
-  virtual FailureOr<Attribute> getContextualAttr(FunctionOpInterface funcOp,
-                                                 int inputIndex) const = 0;
+  // Get the attribute for a given input or result of an op. If `op` points
+  // to a FunctionOpInterface, the argument/result index is for the function's
+  // arguments and results. Otherwise it's for the signature arg
+  virtual FailureOr<Attribute> getContextualArgumentAttr(
+      Operation *op, int argumentIndex) const = 0;
+  virtual FailureOr<Attribute> getContextualResultAttr(
+      Operation *op, int resultIndex) const = 0;
 
   /// This class provides all of the information necessary to convert a type
   /// signature.
@@ -273,11 +275,6 @@ class ContextAwareTypeConverter {
   /// Here the value is used as context
   LogicalResult convertType(Type t, Value v,
                             SmallVectorImpl<Type> &results) const;
-  /// HEIR: added an option to convert a type with Operation context
-  /// (somehow t is a type defined by op, and the subclass of this type
-  /// converter must define how to handle this)
-  virtual LogicalResult convertType(Type t, Operation *op,
-                                    SmallVectorImpl<Type> &results) const = 0;
 
   /// This hook simplifies defining 1-1 type conversions. This function returns
   /// the type to convert to on success, and a null type on failure.
@@ -305,9 +302,6 @@ class ContextAwareTypeConverter {
                              SmallVectorImpl<Type> &results) const;
   LogicalResult convertTypes(TypeRange types, ValueRange values,
                              SmallVectorImpl<Type> &results) const;
-  /// HEIR: added an option to pass the Operation * as context
-  virtual LogicalResult convertTypes(TypeRange types, Operation *op,
-                                     SmallVectorImpl<Type> &results) const = 0;
 
   /// Return true if the given type is legal for this type converter, i.e. the
   /// type converts to itself.

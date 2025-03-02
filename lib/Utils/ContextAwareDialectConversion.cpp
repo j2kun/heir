@@ -2689,10 +2689,24 @@ static LogicalResult convertFuncOpTypes(
   // Convert the original function types.
   ContextAwareTypeConverter::SignatureConversion result(type.getNumInputs());
   SmallVector<Type, 1> newResults;
+  SmallVector<Attribute, 1> resultAttrs;
+  for (int i = 0; i < funcOp.getNumResults(); ++i)
+    resultAttrs.push_back(
+        typeConverter.getContextualResultAttr(funcOp, i).value_or(nullptr));
+
+  SmallVector<Type, 1> newArguments;
+  SmallVector<Attribute, 1> argumentAttrs;
+  for (int i = 0; i < funcOp.getNumArguments(); ++i)
+    argumentAttrs.push_back(
+        typeConverter.getContextualArgumentAttr(funcOp, i).value_or(nullptr));
+
+  // HEIR: this is weird because it does the func arguments twice, but the
+  // SignatureConversion thing is used by convertRegionTypes so I'm not sure
+  // how to avoid it.
   if (failed(typeConverter.convertSignatureArgs(funcOp, type.getInputs(),
                                                 result)) ||
-      failed(
-          typeConverter.convertTypes(type.getResults(), funcOp, newResults)) ||
+      failed(typeConverter.convertTypes(type.getResults(), resultAttrs,
+                                        newResults)) ||
       failed(rewriter.convertRegionTypes(&funcOp.getFunctionBody(),
                                          typeConverter, &result)))
     return failure();

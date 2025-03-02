@@ -14,9 +14,14 @@ LogicalResult ContextAwareTypeConverter::convertFuncSignature(
     FunctionOpInterface funcOp, SmallVectorImpl<Type> &newArgTypes,
     SmallVectorImpl<Type> &newResultTypes) const {
   if (funcOp.isDeclaration()) {
-    if (failed(convertTypes(funcOp.getArgumentTypes(), funcOp, newArgTypes)))
+    // Not sure what to do here
+    SmallVector<Attribute> nullOperandAttrs(funcOp.getNumArguments(), nullptr);
+    if (failed(convertTypes(funcOp.getArgumentTypes(), nullOperandAttrs,
+                            newArgTypes)))
       return failure();
-    if (failed(convertTypes(funcOp.getResultTypes(), funcOp, newResultTypes)))
+    SmallVector<Attribute> nullResultAttrs(funcOp.getNumArguments(), nullptr);
+    if (failed(convertTypes(funcOp.getResultTypes(), nullResultAttrs,
+                            newResultTypes)))
       return failure();
     return success();
   }
