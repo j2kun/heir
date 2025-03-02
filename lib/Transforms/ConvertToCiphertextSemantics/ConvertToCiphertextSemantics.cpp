@@ -67,13 +67,10 @@ struct LayoutMaterializationTypeConverter : public ContextAwareTypeConverter {
  public:
   LayoutMaterializationTypeConverter(int ciphertextSize)
       : ciphertextSize(ciphertextSize) {
-    addConversion([&](Type type, Value v) -> std::optional<Type> {
-      auto result = getContextualAttr(v);
-      if (failed(result)) return std::nullopt;
-      return convert(type, result.value());
+    addConversion([&](Type type, AffineMapAttr attr) -> std::optional<Type> {
+      return convert(type, attr);
     });
-
-    addConversion([&](Type type, Value v) { return type; });
+    addConversion([&](Type type, Attribute attr) { return type; });
   }
 
   FailureOr<Type> convert(Type type, Attribute attr) const override {

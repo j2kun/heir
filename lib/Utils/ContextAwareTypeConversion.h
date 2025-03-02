@@ -55,7 +55,7 @@ class ContextAwareTypeConverter {
   // Get the attribute for a given input of a function. Since the function may
   // be a declaration, it may not have any SSA value with which to use
   // getContextualAttr(Value) above,
-  virtual FailureOr<Attribute> getContextualAttr(FuncOpInterface funcOp,
+  virtual FailureOr<Attribute> getContextualAttr(FunctionOpInterface funcOp,
                                                  int inputIndex) const = 0;
 
   /// This class provides all of the information necessary to convert a type
@@ -155,10 +155,16 @@ class ContextAwareTypeConverter {
   ///
   /// Note: When attempting to convert a type, e.g. via 'convertType', the
   ///       mostly recently added conversions will be invoked first.
-  template <typename FnT, typename T = typename llvm::function_traits<
-                              std::decay_t<FnT>>::template arg_t<0>>
+  template <
+      typename FnT,
+      // Type
+      typename T =
+          typename llvm::function_traits<std::decay_t<FnT>>::template arg_t<0>,
+      // Attribute
+      typename A =
+          typename llvm::function_traits<std::decay_t<FnT>>::template arg_t<1>>
   void addConversion(FnT &&callback) {
-    registerConversion(wrapCallback<T>(std::forward<FnT>(callback)));
+    registerConversion(wrapCallback<T, A>(std::forward<FnT>(callback)));
   }
 
   /// All of the following materializations require function objects that are
@@ -262,7 +268,6 @@ class ContextAwareTypeConverter {
   /// be removed during conversion.
   ///
   /// HEIR: the added argument Attribute corresponds to the context of the type
-  /// (v.getType() == t)
   LogicalResult convertType(Type t, Attribute attr,
                             SmallVectorImpl<Type> &results) const;
   /// Here the value is used as context
@@ -278,7 +283,7 @@ class ContextAwareTypeConverter {
   /// the type to convert to on success, and a null type on failure.
   ///
   /// HEIR: the added argument Value v corresponds to the context of the type
-  Type convertType(Type t, Value v) const;
+  Type convertType(Type t, Attribute attr) const;
 
   /// Attempts a 1-1 type conversion, expecting the result type to be
   /// `TargetType`. Returns the converted type cast to `TargetType` on success,
@@ -286,16 +291,18 @@ class ContextAwareTypeConverter {
   ///
   /// HEIR: the added argument Value v corresponds to the context of the type
   template <typename TargetType>
-  TargetType convertType(Type t, Value v) const {
-    return dyn_cast_or_null<TargetType>(convertType(t, v));
+  TargetType convertType(Type t, Attribute attr) const {
+    return dyn_cast_or_null<TargetType>(convertType(t, attr));
   }
 
   /// Convert the given set of types, filling 'results' as necessary. This
   /// returns failure if the conversion of any of the types fails, success
   /// otherwise.
   ///
-  /// HEIR: the added argument ValueRange values corresponds to the context of
-  /// the type
+  /// HEIR: the added argument array of attributes corresponds to the context of
+  /// each type
+  LogicalResult convertTypes(TypeRange types, ArrayRef<Attribute> attributes,
+                             SmallVectorImpl<Type> &results) const;
   LogicalResult convertTypes(TypeRange types, ValueRange values,
                              SmallVectorImpl<Type> &results) const;
   /// HEIR: added an option to pass the Operation * as context
@@ -305,14 +312,14 @@ class ContextAwareTypeConverter {
   /// Return true if the given type is legal for this type converter, i.e. the
   /// type converts to itself.
   ///
-  /// HEIR: the added argument Value corresponds to the context of the type
-  bool isLegal(Type type, Value value) const;
+  /// HEIR: the added argument Attribute corresponds to the context of the type
+  bool isLegal(Type type, Attribute attr) const;
 
   /// Same as isLegal, but for type ranges and value ranges
   ///
-  /// HEIR: the added argument ValueRange corresponds to the context of the
-  /// types in the TypeRange
-  bool isLegal(TypeRange types, ValueRange values) const;
+  /// HEIR: the added argument array of attributes corresponds to the context of
+  /// the types in the TypeRange
+  bool isLegal(TypeRange types, ArrayRef<Attribute> attributes) const;
 
   /// Return true if the given operation has legal operand and result types.
   bool isLegal(Operation *op) const;
@@ -371,7 +378,7 @@ class ContextAwareTypeConverter {
   /// types is empty, the type is removed and any usages of the existing value
   /// are expected to be removed during conversion.
   using ConversionCallbackFn = std::function<std::optional<LogicalResult>(
-      Type, Value, SmallVectorImpl<Type> &)>;
+      Type, Attribute, SmallVectorImpl<Type> &)>;
 
   /// The signature of the callback used to materialize a source/argument
   /// conversion.
@@ -392,14 +399,14 @@ class ContextAwareTypeConverter {
 
   /// Generate a wrapper for the given callback. This allows for accepting
   /// different callback forms, that all compose into a single version.
-  /// With callback of form: `std::optional<Type>(T, Value)`
-  template <typename T, typename FnT>
-  std::enable_if_t<std::is_invocable_v<FnT, T, Value>, ConversionCallbackFn>
+  /// With callback of form: `std::optional<Type>(T, A)`
+  template <typename T, typename A, typename FnT>
+  std::enable_if_t<std::is_invocable_v<FnT, T, A>, ConversionCallbackFn>
   wrapCallback(FnT &&callback) const {
-    return wrapCallback<T>(
+    return wrapCallback<T, A>(
         [callback = std::forward<FnT>(callback)](
-            T type, Value value, SmallVectorImpl<Type> &results) {
-          if (std::optional<Type> resultOpt = callback(type, value)) {
+            T type, A attr, SmallVectorImpl<Type> &results) {
+          if (std::optional<Type> resultOpt = callback(type, attr)) {
             bool wasSuccess = static_cast<bool>(*resultOpt);
             if (wasSuccess) results.push_back(*resultOpt);
             return std::optional<LogicalResult>(success(wasSuccess));
@@ -408,17 +415,18 @@ class ContextAwareTypeConverter {
         });
   }
   /// With callback of form: `std::optional<LogicalResult>(
-  ///     T, Value, SmallVectorImpl<Type> &, ArrayRef<Type>)`.
-  template <typename T, typename FnT>
-  std::enable_if_t<std::is_invocable_v<FnT, T, Value, SmallVectorImpl<Type> &>,
+  ///     T, A, SmallVectorImpl<Type> &, ArrayRef<Type>)`.
+  template <typename T, typename A, typename FnT>
+  std::enable_if_t<std::is_invocable_v<FnT, T, A, SmallVectorImpl<Type> &>,
                    ConversionCallbackFn>
   wrapCallback(FnT &&callback) const {
     return [callback = std::forward<FnT>(callback)](
-               Type type, Value value,
+               Type type, Attribute attr,
                SmallVectorImpl<Type> &results) -> std::optional<LogicalResult> {
       T derivedType = dyn_cast<T>(type);
-      if (!derivedType) return std::nullopt;
-      return callback(derivedType, value, results);
+      A derivedAttr = dyn_cast<A>(attr);
+      if (!derivedType || !derivedAttr) return std::nullopt;
+      return callback(derivedType, derivedAttr, results);
     };
   }
 

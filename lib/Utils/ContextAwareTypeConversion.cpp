@@ -181,7 +181,7 @@ LogicalResult ContextAwareTypeConverter::convertType(
                                                         std::defer_lock);
 
   for (const ConversionCallbackFn &converter : llvm::reverse(conversions)) {
-    if (std::optional<LogicalResult> result = converter(t, v, results)) {
+    if (std::optional<LogicalResult> result = converter(t, attr, results)) {
       if (t.getContext()->isMultithreadingEnabled()) cacheWriteLock.lock();
       if (!succeeded(*result)) {
         cachedDirectConversions.try_emplace(key, nullptr);
@@ -198,47 +198,60 @@ LogicalResult ContextAwareTypeConverter::convertType(
   return failure();
 }
 
-LogicalResult convertType(Type t, Value v,
-                          SmallVectorImpl<Type> &results) const {
-  FailureOr<Attribute> result = getContextualAttr(v);
-  if (failed(result)) return failure();
-  Attribute attr = result.value();
-  return convertType(t, attr, results);
-}
-
-Type ContextAwareTypeConverter::convertType(Type t, Value v) const {
+Type ContextAwareTypeConverter::convertType(Type t, Attribute attr) const {
   // Use the multi-type result version to convert the type.
   SmallVector<Type, 1> results;
-  if (failed(convertType(t, v, results))) return nullptr;
+  if (failed(convertType(t, attr, results))) return nullptr;
 
   // Check to ensure that only one type was produced.
   return results.size() == 1 ? results.front() : nullptr;
 }
 
 LogicalResult ContextAwareTypeConverter::convertTypes(
-    TypeRange types, ValueRange values, SmallVectorImpl<Type> &results) const {
-  for (const auto &[type, value] : llvm::zip(types, values))
-    if (failed(convertType(type, value, results))) return failure();
+    TypeRange types, ArrayRef<Attribute> attributes,
+    SmallVectorImpl<Type> &results) const {
+  for (const auto &[type, attr] : llvm::zip(types, attributes))
+    if (failed(convertType(type, attr, results))) return failure();
   return success();
 }
 
-bool ContextAwareTypeConverter::isLegal(Type type, Value value) const {
-  return convertType(type, value) == type;
+LogicalResult ContextAwareTypeConverter::convertTypes(
+    TypeRange types, ValueRange values, SmallVectorImpl<Type> &results) const {
+  for (const auto &[type, value] : llvm::zip(types, values)) {
+    auto resultAttr = getContextualAttr(value);
+    if (failed(resultAttr)) return failure();
+    if (failed(convertType(type, resultAttr.value(), results)))
+      return failure();
+  }
+  return success();
+}
+
+bool ContextAwareTypeConverter::isLegal(Type type, Attribute attr) const {
+  return convertType(type, attr) == type;
 }
 bool ContextAwareTypeConverter::isLegal(TypeRange types,
-                                        ValueRange values) const {
-  return llvm::all_of(llvm::zip(types, values), [this](auto pair) {
+                                        ArrayRef<Attribute> attributes) const {
+  return llvm::all_of(llvm::zip(types, attributes), [this](auto pair) {
     return isLegal(std::get<0>(pair), std::get<1>(pair));
   });
 }
 bool ContextAwareTypeConverter::isLegal(Operation *op) const {
-  return isLegal(op->getOperandTypes(), op->getOperands()) &&
-         isLegal(op->getResultTypes(), op->getResults());
+  auto operandAttrs = llvm::map_to_vector(op->getOperands(), [this](Value v) {
+    return getContextualAttr(v).value_or(nullptr);
+  });
+  auto resultAttrs = llvm::map_to_vector(op->getResults(), [this](Value v) {
+    return getContextualAttr(v).value_or(nullptr);
+  });
+  return isLegal(op->getOperandTypes(), operandAttrs) &&
+         isLegal(op->getResultTypes(), resultAttrs);
 }
 
 bool ContextAwareTypeConverter::isLegal(Region *region) const {
   return llvm::all_of(*region, [this](Block &block) {
-    return isLegal(block.getArgumentTypes(), block.getArguments());
+    auto argumentAttrs = llvm::map_to_vector(
+        block.getArguments(),
+        [this](Value v) { return getContextualAttr(v).value_or(nullptr); });
+    return isLegal(block.getArgumentTypes(), argumentAttrs);
   });
 }
 
