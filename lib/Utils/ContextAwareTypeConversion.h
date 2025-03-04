@@ -575,6 +575,13 @@ struct UniquelyNamedAttributeAwareTypeConverter : AttributeAwareTypeConverter {
     return parentOp->getAttr(attrName);
   }
 
+  LogicalResult convertFuncSignature(
+      FunctionOpInterface funcOp, SmallVectorImpl<Type> &newArgTypes,
+      SmallVectorImpl<Type> &newResultTypes) const override {
+    // FIXME: fix
+    return failure();
+  }
+
  private:
   std::string attrName;
 };

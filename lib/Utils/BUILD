@@ -52,6 +52,32 @@ cc_library(
 )
 
 cc_library(
+    name = "ContextAwareConversionUtils",
+    srcs = ["ContextAwareConversionUtils.cpp"],
+    hdrs = ["ContextAwareConversionUtils.h"],
+    deps = [
+        ":ContextAwareDialectConversion",
+        ":ContextAwareTypeConversion",
+        "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@heir//lib/Dialect/Mgmt/IR:Dialect",
+        "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Dialect/TfheRust/IR:Dialect",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AffineDialect",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:FuncTransforms",
+        "@llvm-project//mlir:FunctionInterfaces",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:SCFTransforms",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
+        "@llvm-project//mlir:TransformUtils",
+    ],
+)
+
+cc_library(
     name = "ContextAwareTypeConversion",
     srcs = ["ContextAwareTypeConversion.cpp"],
     hdrs = ["ContextAwareTypeConversion.h"],
