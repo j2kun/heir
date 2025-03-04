@@ -260,29 +260,6 @@ bool ContextAwareTypeConverter::isLegal(Region *region) const {
   });
 }
 
-LogicalResult ContextAwareTypeConverter::convertSignatureArg(
-    Operation *op, unsigned inputNo, Type type,
-    SignatureConversion &result) const {
-  // Try to convert the given input type.
-  SmallVector<Type, 1> convertedTypes;
-  if (failed(convertType(type, op, convertedTypes))) return failure();
-
-  // If this argument is being dropped, there is nothing left to do.
-  if (convertedTypes.empty()) return success();
-
-  // Otherwise, add the new inputs.
-  result.addInputs(inputNo, convertedTypes);
-  return success();
-}
-LogicalResult ContextAwareTypeConverter::convertSignatureArgs(
-    Operation *op, TypeRange types, SignatureConversion &result,
-    unsigned origInputOffset) const {
-  for (unsigned i = 0, e = types.size(); i != e; ++i)
-    if (failed(convertSignatureArg(op, origInputOffset + i, types[i], result)))
-      return failure();
-  return success();
-}
-
 Value ContextAwareTypeConverter::materializeArgumentConversion(
     OpBuilder &builder, Location loc, Type resultType,
     ValueRange inputs) const {
@@ -329,10 +306,24 @@ SmallVector<Value> ContextAwareTypeConverter::materializeTargetConversion(
 
 std::optional<ContextAwareTypeConverter::SignatureConversion>
 ContextAwareTypeConverter::convertBlockSignature(Block *block) const {
+  // HEIR: don't reuse convertSignatureArgs, instead get the context
+  // value and convert the types directly. This is because the code
+  // cannot be shared with FuncOp type conversion anymore (blocks have
+  // SSA values for context, but FuncOps may not).
   SignatureConversion conversion(block->getNumArguments());
-  if (failed(convertSignatureArgs(block->getParentOp(),
-                                  block->getArgumentTypes(), conversion)))
-    return std::nullopt;
+  auto values = block->getArguments();
+  auto types = block->getArgumentTypes();
+  for (unsigned i = 0, e = types.size(); i != e; ++i) {
+    SmallVector<Type, 1> convertedTypes;
+    if (failed(convertType(types[i], values[i], convertedTypes)))
+      return std::nullopt;
+
+    // If this argument is being dropped, there is nothing left to do.
+    if (convertedTypes.empty()) continue;
+
+    // Otherwise, add the new inputs.
+    conversion.addInputs(i, convertedTypes);
+  }
   return conversion;
 }
 

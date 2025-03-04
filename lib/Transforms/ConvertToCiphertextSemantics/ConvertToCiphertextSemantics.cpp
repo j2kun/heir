@@ -185,6 +185,43 @@ struct LayoutMaterializationTypeConverter : public ContextAwareTypeConverter {
     return attr;
   }
 
+  LogicalResult convertFuncSignature(
+      FunctionOpInterface funcOp, SmallVectorImpl<Type> &newArgTypes,
+      SmallVectorImpl<Type> &newResultTypes) const override {
+    if (funcOp.isDeclaration())
+      // FIXME: support this somehow; does a declaration still have argattrs we
+      // can hook on?
+      return failure();
+
+    for (int i = 0; i < funcOp.getNumArguments(); ++i) {
+      auto argType = funcOp.getArgumentTypes()[i];
+      auto layoutAttr = funcOp.getArgAttr(i, kLayoutAttrName);
+      if (!layoutAttr) {
+        newArgTypes.push_back(argType);
+        continue;
+      }
+
+      auto convertedType = convert(argType, layoutAttr);
+      if (failed(convertedType)) return failure();
+      newArgTypes.push_back(convertedType.value());
+    }
+
+    for (int i = 0; i < funcOp.getNumResults(); ++i) {
+      auto resultType = funcOp.getResultTypes()[i];
+      auto layoutAttr = funcOp.getResultAttr(i, kLayoutAttrName);
+      if (!layoutAttr) {
+        newResultTypes.push_back(resultType);
+        continue;
+      }
+
+      auto convertedType = convert(resultType, layoutAttr);
+      if (failed(convertedType)) return failure();
+      newResultTypes.push_back(convertedType.value());
+    }
+
+    return success();
+  }
+
  private:
   // The number of slots available in each ciphertext.
   int ciphertextSize;
@@ -270,51 +307,52 @@ struct ConvertFunc : public ConvertFuncWithContextAwareTypeConverter {
   };
 };
 
-struct ConvertGeneric : public SecretGenericConversion {
-  using SecretGenericConversion::SecretGenericConversion;
-
- public:
-  LogicalResult finalizeOpModification(
-      secret::GenericOp op,
-      ConversionPatternRewriter &rewriter) const override {
-    LLVM_DEBUG(llvm::dbgs()
-               << "Finalizing secret.generic conversion for " << op << "\n");
-    rewriter.modifyOpInPlace(op, [&] {
-      for (int i = 0; i < op.getNumOperands(); ++i) {
-        op.removeArgAttr(i, "layout");
-      }
-
-      for (int i = 0; i < op.getNumResults(); ++i) {
-        op->removeAttr("layout");
-      }
-    });
-    LLVM_DEBUG(llvm::dbgs() << "Post-Finalization: " << op << "\n");
-    return success();
-  };
-};
+// struct ConvertGeneric : public SecretGenericConversion {
+//   using SecretGenericConversion::SecretGenericConversion;
+//
+//  public:
+//   LogicalResult finalizeOpModification(
+//       secret::GenericOp op,
+//       ConversionPatternRewriter &rewriter) const override {
+//     LLVM_DEBUG(llvm::dbgs()
+//                << "Finalizing secret.generic conversion for " << op << "\n");
+//     rewriter.modifyOpInPlace(op, [&] {
+//       for (int i = 0; i < op.getNumOperands(); ++i) {
+//         op.removeArgAttr(i, "layout");
+//       }
+//
+//       for (int i = 0; i < op.getNumResults(); ++i) {
+//         op->removeAttr("layout");
+//       }
+//     });
+//     LLVM_DEBUG(llvm::dbgs() << "Post-Finalization: " << op << "\n");
+//     return success();
+//   };
+// };
 
 // A clone of ConvertAny<> but which erases the layout attribute afterward.
-struct ConvertAnyRemovingLayout : public ConversionPattern {
-  ConvertAnyRemovingLayout(const TypeConverter &anyTypeConverter,
-                           MLIRContext *context)
-      : ConversionPattern(anyTypeConverter, RewritePattern::MatchAnyOpTypeTag(),
-                          /*benefit=*/0, context) {
-    setDebugName("ConvertAny");
-    setHasBoundedRewriteRecursion(true);
-  }
-
-  LogicalResult matchAndRewrite(
-      Operation *op, ArrayRef<Value> operands,
-      ConversionPatternRewriter &rewriter) const override {
-    FailureOr<Operation *> result =
-        convertAnyOperand(getTypeConverter(), op, operands, rewriter);
-    if (failed(result)) return failure();
-
-    Operation *newOp = result.value();
-    rewriter.modifyOpInPlace(newOp, [&] { newOp->removeAttr("layout"); });
-    return success();
-  }
-};
+// struct ConvertAnyRemovingLayout : public ConversionPattern {
+//   ConvertAnyRemovingLayout(const TypeConverter &anyTypeConverter,
+//                            MLIRContext *context)
+//       : ConversionPattern(anyTypeConverter,
+//       RewritePattern::MatchAnyOpTypeTag(),
+//                           /*benefit=*/0, context) {
+//     setDebugName("ConvertAny");
+//     setHasBoundedRewriteRecursion(true);
+//   }
+//
+//   LogicalResult matchAndRewrite(
+//       Operation *op, ArrayRef<Value> operands,
+//       ConversionPatternRewriter &rewriter) const override {
+//     FailureOr<Operation *> result =
+//         convertAnyOperand(getTypeConverter(), op, operands, rewriter);
+//     if (failed(result)) return failure();
+//
+//     Operation *newOp = result.value();
+//     rewriter.modifyOpInPlace(newOp, [&] { newOp->removeAttr("layout"); });
+//     return success();
+//   }
+// };
 
 struct ConvertToCiphertextSemantics
     : impl::ConvertToCiphertextSemanticsBase<ConvertToCiphertextSemantics> {
@@ -336,10 +374,11 @@ struct ConvertToCiphertextSemantics
     target.markUnknownOpDynamicallyLegal(
         [&](Operation *op) { return !hasLayoutResultAttrs(op); });
 
-    patterns.add<ConvertFunc, ConvertGeneric, ConvertAnyRemovingLayout>(
+    patterns.add<ConvertFunc>(  // , ConvertGeneric, ConvertAnyRemovingLayout>(
         typeConverter, context);
 
-    if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
+    if (failed(applyContextAwarePartialConversion(module, target,
+                                                  std::move(patterns)))) {
       return signalPassFailure();
     }
   }

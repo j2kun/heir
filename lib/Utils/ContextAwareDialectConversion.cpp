@@ -2687,33 +2687,25 @@ static LogicalResult convertFuncOpTypes(
   if (!type) return failure();
 
   // Convert the original function types.
-  ContextAwareTypeConverter::SignatureConversion result(type.getNumInputs());
-  SmallVector<Type, 1> newResults;
-  SmallVector<Attribute, 1> resultAttrs;
-  for (int i = 0; i < funcOp.getNumResults(); ++i)
-    resultAttrs.push_back(
-        typeConverter.getContextualResultAttr(funcOp, i).value_or(nullptr));
+  // HEIR: use custom callback because a func need not have a body, and/or
+  // no SSA values to use as the context hook. Punt to the type converter.
+  SmallVector<Type, 1> newArgTypes;
+  SmallVector<Type, 1> newResultTypes;
 
-  SmallVector<Type, 1> newArguments;
-  SmallVector<Attribute, 1> argumentAttrs;
-  for (int i = 0; i < funcOp.getNumArguments(); ++i)
-    argumentAttrs.push_back(
-        typeConverter.getContextualArgumentAttr(funcOp, i).value_or(nullptr));
-
-  // HEIR: this is weird because it does the func arguments twice, but the
-  // SignatureConversion thing is used by convertRegionTypes so I'm not sure
-  // how to avoid it.
-  if (failed(typeConverter.convertSignatureArgs(funcOp, type.getInputs(),
-                                                result)) ||
-      failed(typeConverter.convertTypes(type.getResults(), resultAttrs,
-                                        newResults)) ||
+  if (failed(typeConverter.convertFuncSignature(funcOp, newArgTypes,
+                                                newResultTypes)) ||
+      // HEIR: this is a bit of a hack: we don't need to provide a
+      // SignatureConversion to convertRegionTypes, but if we did it may be more
+      // efficient by not re-invoking the type converter to convert the types of
+      // the block arguments.
       failed(rewriter.convertRegionTypes(&funcOp.getFunctionBody(),
-                                         typeConverter, &result)))
+                                         typeConverter,
+                                         /*entryConversion=*/nullptr)))
     return failure();
 
   // Update the function signature in-place.
-  auto newType = FunctionType::get(rewriter.getContext(),
-                                   result.getConvertedTypes(), newResults);
+  auto newType =
+      FunctionType::get(rewriter.getContext(), newArgTypes, newResultTypes);
 
   rewriter.modifyOpInPlace(funcOp, [&] { funcOp.setType(newType); });
 

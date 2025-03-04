@@ -41,24 +41,16 @@ class ContextAwareTypeConverter {
     return *this;
   }
 
-  // ---- New functions added by HEIR ----- //
-  // Require subclasses to implement this instead of registering multiple
-  // conversions and materializations.
+  // HEIR: the main type converter function, which calls into the registered
+  // type converters. Changed from upstream: added an Attribute as the context
+  // for the conversion.
   virtual FailureOr<Type> convert(Type type, Attribute attr) const = 0;
 
-  // Return an Attribute used by convertValueRangeTypes to convert the type of
+  // HEIR: the main way to determine
   // the input `value`. If no usable attribute is found, returns a failure.
   // This may indicate that no type conversion is necessary. As a result, the
   // returned Attribute is never nullptr.
   virtual FailureOr<Attribute> getContextualAttr(Value value) const = 0;
-
-  // Get the attribute for a given input or result of an op. If `op` points
-  // to a FunctionOpInterface, the argument/result index is for the function's
-  // arguments and results. Otherwise it's for the signature arg
-  virtual FailureOr<Attribute> getContextualArgumentAttr(
-      Operation *op, int argumentIndex) const = 0;
-  virtual FailureOr<Attribute> getContextualResultAttr(
-      Operation *op, int resultIndex) const = 0;
 
   /// This class provides all of the information necessary to convert a type
   /// signature.

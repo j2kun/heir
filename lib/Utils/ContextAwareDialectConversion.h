@@ -10,8 +10,8 @@
 namespace mlir {
 namespace heir {
 
-// This file is a port of DialectConversion.h from MLIR upstream, with the
-// following changes:
+// HEIR: This file is a port of DialectConversion.h from MLIR upstream, with
+// the following changes:
 //
 // - Replaced uses of TypeConverter with AttributeAwareTypeConverter
 // - Changed ConversionPattern to ContextAwareConversionPattern
