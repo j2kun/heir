@@ -135,31 +135,10 @@ class SecretGenericOpConversion
       oldInputTypes.push_back(inputs.back().getType());
     }
 
-    if (contextAwareContextAwareTypeConverter) {
-      // manually do the OpAdaptor's work
-      SmallVector<Type> newInputTypes;
-      if (failed(contextAwareContextAwareTypeConverter->convertTypes(
-              oldInputTypes, inputs, newInputTypes)))
-        return failure();
-      rewriter.modifyOpInPlace(op, [&] {
-        for (const auto &[input, newType] : llvm::zip(inputs, newInputTypes)) {
-          input.setType(newType);
-        }
-      });
-    }
-    // else OpAdaptor will do it for us
-
-    // convert the result types
     SmallVector<Type> resultTypes;
-    if (contextAwareContextAwareTypeConverter) {
-      if (failed(contextAwareContextAwareTypeConverter->convertTypes(
-              op.getResultTypes(), op.getResults(), resultTypes)))
-        return failure();
-    } else {
-      if (failed(getTypeConverter()->convertTypes(op.getResultTypes(),
-                                                  resultTypes)))
-        return failure();
-    }
+    if (failed(getTypeConverter()->convertTypes(op.getResultTypes(),
+                                                op.getResults(), resultTypes)))
+      return failure();
 
     // only preserve dialect attrs
     // we do not want op attrs like overflowFlags from arith.add
@@ -177,6 +156,7 @@ class SecretGenericOpConversion
       }
     }
 
+    // FIXME: use op adaptor to get converted operand/result types
     return matchAndRewriteInner(op, resultTypes, inputs, dialectAttrs,
                                 rewriter);
   }
@@ -459,4 +439,6 @@ class SecretGenericOpModulusSwitchConversion
 };
 
 }  // namespace heir
+}  // namespace mlir
+
 #endif  // LIB_UTILS_CONTEXTAWARECOVNVERSIONUTILS_H_
