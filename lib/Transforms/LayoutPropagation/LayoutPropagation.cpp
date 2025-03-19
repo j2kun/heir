@@ -317,6 +317,12 @@ LogicalResult LayoutPropagation::visitOperation(CollapseShapeOp op) {
   LayoutAttr inputLayout = assignedLayouts.at(tensor);
   unsigned numDims = tensor.getType().getRank();
   llvm::SmallBitVector dimsBV(numDims, false);
+  SmallVector<int64_t> newDimsToInsert;
+  SmallVector<int64_t> newPadding;
+
+  if (inputLayout.getAlignment()) {
+    newPadding.resize(inputLayout.getAlignment().getOut().size(), 0);
+  }
 
   for (Attribute associationGroup : op.getReassociation()) {
     auto associationArray = dyn_cast<ArrayAttr>(associationGroup).getValue();
@@ -326,15 +332,33 @@ LogicalResult LayoutPropagation::visitOperation(CollapseShapeOp op) {
     }
     for (Attribute association : associationArray) {
       int64_t reassocDim = cast<IntegerAttr>(association).getInt();
-      if (op.getSrcType().getShape()[reassocDim] == 1) dimsBV.set(reassocDim);
+      if (op.getSrcType().getShape()[reassocDim] == 1) {
+        dimsBV.set(reassocDim);
+        newDimsToInsert.push_back(reassocDim);
+        newPadding[reassocDim] = 0;
+      }
     }
+  }
+
+  if (inputLayout.getAlignment()) {
+    for (auto dim : inputLayout.getAlignment().getInsertedDims().asArrayRef()) {
+      newDimsToInsert.push_back(dim);
+    }
+    llvm::sort(newDimsToInsert);
   }
 
   AffineMap resultLayout =
       projectDims(inputLayout.getMap(), dimsBV, /*compressDims=*/true);
-  // FIXME: double check the replication is unchanged...
-  LayoutAttr resultLayoutAttr =
-      LayoutAttr::get(resultLayout, inputLayout.getAlignment());
+
+  tensor_ext::AlignmentAttr newAlignment = tensor_ext::AlignmentAttr::get(
+    op->getContext(
+      /*in=*/op.getResultType().getShape(),
+      /*out=*/inputLayout.getAlignment().getOut(),
+      /*insertedDims=*/newDimsToInsert,
+      /*padding=*/newPadding,
+      /*paddingValue=*/inputLayout.getAlignment().getPaddingValue()
+    );
+  LayoutAttr resultLayoutAttr = LayoutAttr::get(resultLayout, newAlignment);
   assignedLayouts.insert({op.getResult(), resultLayoutAttr});
   setResultLayoutAttr(op);
   debugAssignLayout(op.getResult(), resultLayoutAttr);
