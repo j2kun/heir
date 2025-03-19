@@ -44,11 +44,11 @@ std::string getWeightsPrelude() { return std::string(kWeightsPreludeTemplate); }
 FailureOr<std::string> convertType(Type type, Location loc, bool constant) {
   // Right now we only support non-const ciphertext types that may be modified
   // in a loop body.
-  if (!constant &&
-      !mlir::isa<lwe::NewLWECiphertextType>(getElementTypeOrSelf(type))) {
-    emitError(loc, "Only ciphertext types can be non-const.");
-    return failure();
-  }
+  // if (!constant &&
+  //     !mlir::isa<lwe::NewLWECiphertextType>(getElementTypeOrSelf(type))) {
+  //   emitError(loc, "Only ciphertext types can be non-const.");
+  //   return failure();
+  // }
   return llvm::TypeSwitch<Type &, FailureOr<std::string>>(type)
       // For now, these types are defined in the prelude as aliases.
       .Case<CryptoContextType>(
