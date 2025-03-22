@@ -52,7 +52,7 @@ def Polynomial_FloatPolynomialAttr : Polynomial_Attr<"FloatPolynomial", "float_p
     #poly = #polynomial.float_polynomial<0.5 x**7 + 1.5>
     ```
   }];
-  let parameters = (ins "FloatPolynomial":$polynomial);
+  let parameters = (ins "::mlir::heir::polynomial::FloatPolynomial":$polynomial);
   let hasCustomAssemblyFormat = 1;
 }
 
@@ -117,6 +117,53 @@ def Polynomial_TypedFloatPolynomialAttr : Polynomial_Attr<
   ];
   let extraClassDeclaration = [{
     using ValueType = ::mlir::heir::polynomial::FloatPolynomialAttr;
+  }];
+}
+
+def Polynomial_FloatChebPolynomialAttr : Polynomial_Attr<"FloatChebPolynomial", "float_cheb_polynomial"> {
+  let summary = "an attribute for a polynomial in the Chebyshev basis with floating point coefficients";
+  let description = [{
+    The polynomial is expressed as a list of float coefficients.
+
+    Example:
+
+    ```mlir
+    #poly = #polynomial.float_cheb_polynomial<[0.0, 0.1, 0.2]>
+    ```
+  }];
+  let parameters = (ins "::mlir::F64ArrayAttr":$coefficients);
+  let assemblyFormat = "`<` $coefficients `>`";
+}
+
+def Polynomial_TypedFloatChebPolynomialAttr : Polynomial_Attr<
+    "TypedFloatChebPolynomial", "typed_float_cheb_polynomial"> {
+  let summary = "a typed float_cheb_polynomial";
+  let description = [{
+    Example:
+
+    ```mlir
+    !poly_ty = !polynomial.polynomial<ring=<coefficientType=f32>>
+    #poly = float_cheb_polynomial<[0.0, 0.1, 0.2]> : !poly
+    #poly_verbose = #polynomial.typed_float_cheb_polynomial<[0.0, 0.1, 0.2]> : !poly_ty
+    ```
+  }];
+  let parameters = (ins "::mlir::Type":$type, "::mlir::heir::polynomial::FloatChebPolynomialAttr":$value);
+  let assemblyFormat = "$value `:` $type";
+  let builders = [
+    AttrBuilderWithInferredContext<(ins "Type":$type,
+                                        "const FloatChebPolynomial &":$value), [{
+      return $_get(
+        type.getContext(),
+        type,
+        FloatChebPolynomialAttr::get(type.getContext(), value));
+    }]>,
+    AttrBuilderWithInferredContext<(ins "Type":$type,
+                                        "const Attribute &":$value), [{
+      return $_get(type.getContext(), type, ::llvm::cast<FloatChebPolynomialAttr>(value));
+    }]>
+  ];
+  let extraClassDeclaration = [{
+    using ValueType = ::mlir::heir::polynomial::FloatChebPolynomialAttr;
   }];
 }
 

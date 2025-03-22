@@ -25,13 +25,13 @@ using ::llvm::APFloat;
 using ::llvm::SmallVector;
 using ::mlir::heir::polynomial::FloatPolynomial;
 
-FloatPolynomial caratheodoryFejerApproximationUnitInterval(
+SmallVector<APFloat> caratheodoryFejerApproximationUnitInterval(
     const std::function<APFloat(APFloat)> &func, int32_t degree) {
   // Construct the Chebyshev interpolant.
   SmallVector<APFloat> chebCoeffs;
   interpolateChebyshevWithSmartDegreeSelection(func, chebCoeffs);
   size_t chebDegree = chebCoeffs.size() - 1;
-  if (chebDegree <= degree) return chebyshevToMonomial(chebCoeffs);
+  if (chebDegree <= degree) return chebCoeffs;
 
   // Use the tail coefficients to construct a Hankel matrix
   // where A[i, j] = c[i+j]
@@ -110,10 +110,10 @@ FloatPolynomial caratheodoryFejerApproximationUnitInterval(
     pk.push_back(chebCoeffs[i] - bb[i]);
   }
 
-  return chebyshevToMonomial(pk);
+  return pk;
 }
 
-FloatPolynomial caratheodoryFejerApproximation(
+SmallVector<APFloat> caratheodoryFejerApproximation(
     const std::function<APFloat(APFloat)> &func, int32_t degree, double lower,
     double upper) {
   bool needsScaling = lower != -1.0 || upper != 1.0;
@@ -128,10 +128,11 @@ FloatPolynomial caratheodoryFejerApproximation(
   } else {
     funcScaled = func;
   }
-  FloatPolynomial approximant =
+  SmallVector<APFloat> approximant =
       caratheodoryFejerApproximationUnitInterval(funcScaled, degree);
 
   if (needsScaling) {
+    // FIXME: figure out how to do this rescaling in the chebyshev basis
     FloatPolynomial y =
         FloatPolynomial::fromCoefficients({-midPoint / halfLen, 1 / halfLen});
     approximant = approximant.compose(y);

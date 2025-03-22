@@ -3,6 +3,7 @@
 #include "gmock/gmock.h"  // from @googletest
 #include "gtest/gtest.h"  // from @googletest
 #include "lib/Utils/Approximation/CaratheodoryFejer.h"
+#include "lib/Utils/Approximation/Chebyshev.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "llvm/include/llvm/ADT/APFloat.h"   // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
@@ -22,7 +23,9 @@ TEST(CaratheodoryFejerTest, ApproximateExpDegree3) {
   auto func = [](const APFloat& x) {
     return APFloat(std::exp(x.convertToDouble()));
   };
-  FloatPolynomial actual = caratheodoryFejerApproximation(func, 3);
+  // FIXME: use chev coeffs in assertions
+  FloatPolynomial actual =
+      chebyshevToMonomial(caratheodoryFejerApproximation(func, 3));
   // Values taken from reference impl are exact.
   FloatPolynomial expected = FloatPolynomial::fromCoefficients(
       {0.9945794763246951, 0.9956677100276301, 0.5429727883818608,
@@ -34,7 +37,8 @@ TEST(CaratheodoryFejerTest, ApproximateExpDegree3MinusTwoTwoInterval) {
   auto func = [](const APFloat& x) {
     return APFloat(std::exp(x.convertToDouble()));
   };
-  FloatPolynomial actual = caratheodoryFejerApproximation(func, 3, -2.0, 2.0);
+  FloatPolynomial actual =
+      chebyshevToMonomial(caratheodoryFejerApproximation(func, 3, -2.0, 2.0));
   auto terms = actual.getTerms();
   EXPECT_THAT(terms[0].getCoefficient().convertToDouble(),
               DoubleNear(0.9023129365897373, EPSILON));
@@ -51,7 +55,8 @@ TEST(CaratheodoryFejerTest, ApproximateReluDegree14) {
     APFloat zero = APFloat::getZero(x.getSemantics());
     return x > zero ? x : zero;
   };
-  FloatPolynomial actual = caratheodoryFejerApproximation(relu, 14);
+  FloatPolynomial actual =
+      cchebyshevToMonomial(aratheodoryFejerApproximation(relu, 14));
 
   // The reference implementation prints coefficients that are ~1e-12 away from
   // our implementation, mainly because the eigenvalue solver details are

@@ -1,14 +1,12 @@
 #include "lib/Transforms/PolynomialApproximation/PolynomialApproximation.h"
 
 #include <cmath>
-#include <cstdint>
-#include <functional>
-#include <utility>
 
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
 #include "lib/Utils/Approximation/CaratheodoryFejer.h"
+#include "lib/Utils/Approximation/Chebyshev.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "llvm/include/llvm/ADT/APFloat.h"           // from @llvm-project
 #include "mlir/include/mlir/Dialect/Math/IR/Math.h"  // from @llvm-project
@@ -152,9 +150,12 @@ struct ConvertUnaryOp : public OpRewritePattern<OpTy> {
         op->hasAttr("domain_upper")
             ? cast<FloatAttr>(op->getAttr("domain_upper"))
             : rewriter.getF64FloatAttr(kDefaultDomainUpper);
-    FloatPolynomial poly = approximation::caratheodoryFejerApproximation(
-        exp, degreeAttr.getInt(), domainLowerAttr.getValue().convertToDouble(),
-        domainUpperAttr.getValue().convertToDouble());
+    // FIXME: support chebyshev basis directly
+    FloatPolynomial poly = approximation::chebyshevToMonomial(
+        approximation::caratheodoryFejerApproximation(
+            exp, degreeAttr.getInt(),
+            domainLowerAttr.getValue().convertToDouble(),
+            domainUpperAttr.getValue().convertToDouble()));
     PolynomialType polyType =
         PolynomialType::get(ctx, RingAttr::get(Float64Type::get(ctx)));
     TypedFloatPolynomialAttr polyAttr =
