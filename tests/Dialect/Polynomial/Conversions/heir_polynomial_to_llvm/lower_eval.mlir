@@ -49,3 +49,4 @@ func.func @test_eval_for_paterson() -> i64 {
 }
 
 // FIXME: add a test exercising iterated squaring
+// FIXME: maybe add the mul depth pass to annotate mul depth, and have tests match against that?
