@@ -121,6 +121,12 @@ void iterateIndices(ArrayRef<int64_t> shape, const IndexTupleConsumer &process,
                     ArrayRef<int64_t> fixedIndices = {},
                     ArrayRef<int64_t> fixedIndexValues = {});
 
+
+// Returns true if the input is a power of two
+// If you have an APInt, you can also use APInt::isPowerOf2
+bool isPowerOfTwo(int64_t n) { return (n > 0) && ((n & (n - 1)) == 0); }
+
+
 }  // namespace heir
 }  // namespace mlir
 

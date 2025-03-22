@@ -5,10 +5,6 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <optional>
-#include <string>
-#include <utility>
-#include <vector>
 
 #include "lib/Dialect/ModArith/IR/ModArithOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
@@ -17,6 +13,7 @@
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
 #include "lib/Utils/APIntUtils.h"
+#include "lib/Utils/Utils.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
@@ -1330,12 +1327,30 @@ struct ConvertEvalToPatersonStockmeyer : public OpConversionPattern<EvalOp> {
     int64_t k = std::max(static_cast<int64_t>(std::ceil(std::sqrt(maxDegree))),
                          static_cast<int64_t>(1));
 
-    // Precompute x^1, x^2, ..., x^k
+    // Precompute x^1, x^2, ..., x^k. Use iterated squaring to reduce
+    // multiplicative depth
     std::vector<Value> xPowers(k + 1);
     xPowers[0] = b.create<arith::ConstantIntOp>(1, bitWidth);
     xPowers[1] = x;
     for (int64_t i = 2; i <= k; i++) {
-      xPowers[i] = b.create<arith::MulIOp>(xPowers[i - 1], x).getResult();
+      if (isPowerOfTwo(i)) {
+        xPowers[i] =
+            b.create<arith::MulIOp>(xPowers[i / 2], xPowers[i / 2]).getResult();
+      } else {
+        // Construct from bit indices
+        // i.e., x^6 = x^4 * x^2
+        bool first = true;
+        for (int64_t bitmask = 0; bitmask < i; bitmask <<= 2) {
+          if (i & bitmask) {
+            if (first) {
+              xPowers[i] = xPowers[bitmask];
+            } else {
+              xPowers[i] = b.create<arith::MulIOp>(xPowers[i], xPowers[bitmask])
+                               .getResult();
+            }
+          }
+        }
+      }
     }
 
     // Number of chunks we'll need
@@ -1383,6 +1398,10 @@ struct ConvertEvalToPatersonStockmeyer : public OpConversionPattern<EvalOp> {
     }
 
     // Combine chunks using Horner's method with x^k
+    // TODO(#xxx): this avoids precomputing more powers of x,
+    // but it adds more multiplicative depth to the result
+    // than precomputations that use iterated squaring and
+    // then naively combining the terms.
     Value result = nullptr;
     bool hasNonEmptyChunk = false;
 

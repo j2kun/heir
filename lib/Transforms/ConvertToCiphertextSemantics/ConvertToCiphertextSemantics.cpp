@@ -63,8 +63,6 @@ static constexpr int kUnset = -1;
 #define GEN_PASS_DEF_CONVERTTOCIPHERTEXTSEMANTICS
 #include "lib/Transforms/ConvertToCiphertextSemantics/ConvertToCiphertextSemantics.h.inc"
 
-bool isPowerOfTwo(int64_t n) { return (n > 0) && ((n & (n - 1)) == 0); }
-
 // This type converter converts types like tensor<NxMxi16> where the dimensions
 // represent tensor-semantic data to tensor<ciphertext_count x num_slots x
 // i16>, where the last dimension represents the ciphertext or plaintext slot

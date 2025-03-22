@@ -47,3 +47,5 @@ func.func @test_eval_for_paterson() -> i64 {
     // CHECK: return %[[RESULT]] : i64
     return %0 : i64
 }
+
+// FIXME: add a test exercising iterated squaring
