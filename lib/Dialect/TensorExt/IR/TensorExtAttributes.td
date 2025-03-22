@@ -8,9 +8,17 @@ include "mlir/IR/DialectBase.td"
 include "mlir/IR/TensorEncoding.td"
 
 class TensorExt_Attr<string name, string attrMnemonic, list<Trait> traits = []>
-    : AttrDef<TensorExt_Dialect, name, traits> {
+    : AttrDef<TensorExt_Dialect, name, traits # [OpAsmAttrInterface]> {
   let mnemonic = attrMnemonic;
   let assemblyFormat = "`<` struct(params) `>`";
+
+  let extraClassDeclaration = [{
+    // OpAsmAttrInterface methods.
+    ::mlir::OpAsmDialectInterface::AliasResult getAlias(::llvm::raw_ostream &os) const {
+      os << "}] # attrMnemonic # [{";
+      return ::mlir::OpAsmDialectInterface::AliasResult::FinalAlias;
+    }
+  }];
 }
 
 def SIMDPacking_Attr : TensorExt_Attr<"SIMDPacking", "simd_packing",
