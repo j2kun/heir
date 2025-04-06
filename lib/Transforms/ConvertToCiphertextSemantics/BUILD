@@ -10,6 +10,7 @@ cc_library(
     srcs = ["ConvertToCiphertextSemantics.cpp"],
     hdrs = ["ConvertToCiphertextSemantics.h"],
     deps = [
+        ":Patterns",
         ":TypeConversion",
         ":pass_inc_gen",
         "@heir//lib/Dialect/Secret/IR:SecretPatterns",
@@ -45,6 +46,24 @@ cc_library(
         "@heir//lib/Utils:AffineMapUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
+    name = "Patterns",
+    srcs = ["Patterns.cpp"],
+    hdrs = ["Patterns.h"],
+    deps = [
+        ":TypeConversion",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Utils",
+        "@heir//lib/Utils:AffineMapUtils",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LinalgDialect",
+        "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
     ],
 )

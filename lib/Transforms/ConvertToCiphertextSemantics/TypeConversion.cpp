@@ -13,17 +13,20 @@ namespace heir {
 
 using tensor_ext::LayoutAttr;
 
-FailureOr<Type> materializeScalarLayout(Type type, LayoutAttr attr,
-                                        int64_t ciphertextSize) {
+Type materializeScalarLayout(Type type, LayoutAttr attr, int ciphertextSize) {
   // TODO(#1662): improve scalar layout materialization
   // Support scalars with non-repetition layouts (e.g., in slot 0 with
   // 0-padding); currently the layout system always produces a pure-repeition
   // alignment and a trivial row-major layout.
+  llvm::dbgs() << "in materializeScalarLayout: ciphertextSize="
+               << ciphertextSize << "\n";
   return RankedTensorType::get({ciphertextSize}, type);
 }
 
-FailureOr<Type> materializeLayout(RankedTensorType type, LayoutAttr attr,
-                                  int64_t ciphertextSize) {
+Type materializeLayout(RankedTensorType type, LayoutAttr attr,
+                       int ciphertextSize) {
+  llvm::dbgs() << "in materializeLayout: ciphertextSize=" << ciphertextSize
+               << "\n";
   AffineMap layout = attr.getMap();
 
   // First extract the tensor type as expanded according to the
