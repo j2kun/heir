@@ -12,18 +12,24 @@
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Transforms/ConvertToCiphertextSemantics/Patterns.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Block.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
+#include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -33,6 +39,10 @@ namespace lwe {
 #include "lib/Dialect/LWE/Transforms/Passes.h.inc"
 
 using ::mlir::heir::polynomial::RingAttr;
+using ::mlir::heir::tensor_ext::OriginalTypeAttr;
+
+auto &kOriginalTypeAttrName =
+    tensor_ext::TensorExtDialect::kOriginalTypeAttrName;
 
 FailureOr<RingAttr> getEncRingFromFuncOp(func::FuncOp op) {
   RingAttr ring = nullptr;
@@ -77,12 +87,10 @@ FailureOr<RingAttr> getDecRingFromFuncOp(func::FuncOp op) {
 }
 
 /// Generates an encryption func for one or more types.
-LogicalResult generateEncryptionFunc(func::FuncOp op,
-                                     const std::string &encFuncName,
-                                     TypeRange encFuncArgTypes,
-                                     TypeRange encFuncResultTypes,
-                                     bool usePublicKey, RingAttr ring,
-                                     ImplicitLocOpBuilder &builder) {
+LogicalResult generateEncryptionFunc(
+    func::FuncOp op, const std::string &encFuncName, TypeRange encFuncArgTypes,
+    TypeRange encFuncResultTypes, bool usePublicKey, RingAttr ring,
+    OriginalTypeAttr originalType, ImplicitLocOpBuilder &builder) {
   // The enryption function converts each plaintext operand to its encrypted
   // form. We also have to add a public/secret key arg, and we put it at the
   // end to maintain zippability of the non-key args.
@@ -104,17 +112,28 @@ LogicalResult generateEncryptionFunc(func::FuncOp op,
   Value secretKey = encFuncOp.getArgument(encFuncOp.getNumArguments() - 1);
 
   SmallVector<Value> encValuesToReturn;
-  // TODO(#615): encode/decode should convert scalar types to tensors.
   for (size_t i = 0; i < encFuncArgTypes.size(); ++i) {
     auto resultTy = encFuncResultTypes[i];
+    auto operand = encFuncOp.getArgument(i);
 
     // If the output is encrypted, we need to encode and encrypt
     if (auto resultCtTy = dyn_cast<lwe::NewLWECiphertextType>(resultTy)) {
+      // Apply the layout from the original type, which handles the job of
+      // converting a scalar to a tensor, and laying out a tensor in a
+      // ciphertext-semantic tensor so that it can then be encoded/encrypted.
+      // Note that this op still needs to be lowered, which implies the
+      // relevant patterns from convert-to-ciphertext-semantics must be
+      // run after this pass.
+      //
+      // FIXME: reuse ConvertAssignLayout in this pass
+      auto assignLayoutOp = builder.create<tensor_ext::AssignLayoutOp>(
+          op.getLoc(), operand, originalType.getLayout());
+
       auto plaintextTy = lwe::NewLWEPlaintextType::get(
           op.getContext(), resultCtTy.getApplicationData(),
           resultCtTy.getPlaintextSpace());
       auto encoded = builder.create<lwe::RLWEEncodeOp>(
-          plaintextTy, encFuncOp.getArgument(i),
+          plaintextTy, assignLayoutOp.getResult(),
           resultCtTy.getPlaintextSpace().getEncoding(),
           resultCtTy.getPlaintextSpace().getRing());
       auto encrypted = builder.create<lwe::RLWEEncryptOp>(
@@ -124,7 +143,7 @@ LogicalResult generateEncryptionFunc(func::FuncOp op,
     }
 
     // Otherwise, return the input unchanged.
-    encValuesToReturn.push_back(encFuncOp.getArgument(i));
+    encValuesToReturn.push_back(operand);
   }
 
   builder.create<func::ReturnOp>(encValuesToReturn);
@@ -201,15 +220,17 @@ LogicalResult convertFunc(func::FuncOp op, bool usePublicKey) {
   // We need one encryption function per argument and one decryption
   // function per return value. This is mainly to avoid complicated C++ codegen
   // when encrypting multiple inputs which requires out-params.
-  for (auto val : op.getArguments()) {
+  for (BlockArgument val : op.getArguments()) {
     auto argTy = val.getType();
     if (auto argCtTy = dyn_cast<lwe::NewLWECiphertextType>(argTy)) {
       std::string encFuncName("");
       llvm::raw_string_ostream encNameOs(encFuncName);
       encNameOs << op.getSymName() << "__encrypt__arg" << val.getArgNumber();
+      auto originalTypeAttr = op.getArgAttrOfType<OriginalTypeAttr>(
+          val.getArgNumber(), kOriginalTypeAttrName);
       if (failed(generateEncryptionFunc(
-              op, encFuncName, {argCtTy.getApplicationData().getMessageType()},
-              {argCtTy}, usePublicKey, ringEnc, builder))) {
+              op, encFuncName, {originalTypeAttr.getOriginalType()}, {argCtTy},
+              usePublicKey, ringEnc, originalTypeAttr, builder))) {
         return failure();
       }
       // insertion point is inside func, move back out
@@ -237,6 +258,26 @@ LogicalResult convertFunc(func::FuncOp op, bool usePublicKey) {
 
   return success();
 }
+
+class LowerAssignLayout : public OpRewritePattern<tensor_ext::AssignLayoutOp> {
+ public:
+  LowerAssignLayout(mlir::MLIRContext *context, int64_t ciphertextSize)
+      : OpRewritePattern<tensor_ext::AssignLayoutOp>(context),
+        ciphertextSize(ciphertextSize) {}
+
+  LogicalResult matchAndRewrite(tensor_ext::AssignLayoutOp op,
+                                PatternRewriter &rewriter) const final {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    auto res = implementAssignLayout(op, ciphertextSize, b,
+                                     [&](Operation *createdOp) {});
+    if (failed(res)) return failure();
+    rewriter.replaceOp(op, res.value());
+    return success();
+  };
+
+ private:
+  int64_t ciphertextSize;
+};
 
 struct AddClientInterface : impl::AddClientInterfaceBase<AddClientInterface> {
   using AddClientInterfaceBase::AddClientInterfaceBase;
@@ -271,20 +312,28 @@ struct AddClientInterface : impl::AddClientInterfaceBase<AddClientInterface> {
   }
 
   void runOnOperation() override {
+    MLIRContext *context = &getContext();
+    Operation *root = getOperation();
+
     bool usePk = getUsePublicKey();
-    auto result =
-        getOperation()->walk<WalkOrder::PreOrder>([&](func::FuncOp op) {
-          if (op.isDeclaration()) {
-            op->emitWarning("Skipping client interface for external func");
-            return WalkResult::advance();
-          }
-          if (failed(convertFunc(op, usePk))) {
-            op->emitError("Failed to add client interface for func");
-            return WalkResult::interrupt();
-          }
-          return WalkResult::advance();
-        });
+    auto result = root->walk<WalkOrder::PreOrder>([&](func::FuncOp op) {
+      if (op.isDeclaration()) {
+        op->emitWarning("Skipping client interface for external func");
+        return WalkResult::advance();
+      }
+      if (failed(convertFunc(op, usePk))) {
+        op->emitError("Failed to add client interface for func");
+        return WalkResult::interrupt();
+      }
+      return WalkResult::advance();
+    });
     if (result.wasInterrupted()) signalPassFailure();
+
+    // FIXME: get ciphertext size!
+    int ciphertextSize = 0;
+    RewritePatternSet patterns(context);
+    patterns.add<LowerAssignLayout>(context, ciphertextSize);
+    walkAndApplyPatterns(root, std::move(patterns));
   }
 };
 }  // namespace lwe
