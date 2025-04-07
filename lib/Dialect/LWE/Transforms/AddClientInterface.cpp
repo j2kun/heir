@@ -215,7 +215,23 @@ LogicalResult generateDecryptionFunc(
 
       // TODO(#1677): support more complex unpacking
       if (isa<RankedTensorType>(dataSemanticType)) {
-        unpacked = decoded.getResult();
+        auto tensorTy = cast<RankedTensorType>(dataSemanticType);
+        if (tensorTy.getRank() > 1) {
+          return op.emitError() << "Decryption function does not yet support "
+                                   "tensors of rank > 1";
+        }
+        if (tensorTy == decoded.getResult().getType()) {
+          unpacked = decoded.getResult();
+        } else {
+          // slice the tensor at the first N entries
+          SmallVector<OpFoldResult> offsets({builder.getIndexAttr(0)});
+          SmallVector<OpFoldResult> sizes(
+              {builder.getIndexAttr(tensorTy.getNumElements())});
+          SmallVector<OpFoldResult> strides({builder.getIndexAttr(1)});
+          auto sliceOp = builder.create<tensor::ExtractSliceOp>(
+              op.getLoc(), decoded.getResult(), offsets, sizes, strides);
+          unpacked = sliceOp.getResult();
+        }
       } else {
         auto zero = builder.create<arith::ConstantIndexOp>(op.getLoc(), 0);
         auto extractOp =
