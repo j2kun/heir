@@ -14,21 +14,24 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/Patterns.h"
-#include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Block.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/TypeUtilities.h"         // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
+#include "lib/Transforms/ConvertToCiphertextSemantics/TypeConversion.h"
+#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Block.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
 
 #define DEBUG_TYPE "lwe-add-client-interface"
@@ -45,6 +48,18 @@ using ::mlir::heir::tensor_ext::OriginalTypeAttr;
 
 auto &kOriginalTypeAttrName =
     tensor_ext::TensorExtDialect::kOriginalTypeAttrName;
+
+int64_t getNumSlots(Operation *op) {
+  return llvm::TypeSwitch<Attribute, int64_t>(getSchemeParamAttr(op))
+      .Case<bgv::SchemeParamAttr>(
+          [](auto attr) -> int64_t { return 1L << attr.getLogN(); })
+      .Case<ckks::SchemeParamAttr>(
+          [](auto attr) -> int64_t { return (1L << attr.getLogN()) / 2; })
+      .Default([](Attribute attr) -> int64_t {
+        assert(false && "Unsupported scheme parame attribute");
+        return 0;
+      });
+}
 
 FailureOr<RingAttr> getEncRingFromFuncOp(func::FuncOp op) {
   RingAttr ring = nullptr;
@@ -92,7 +107,7 @@ FailureOr<RingAttr> getDecRingFromFuncOp(func::FuncOp op) {
 LogicalResult generateEncryptionFunc(
     func::FuncOp op, const std::string &encFuncName, TypeRange encFuncArgTypes,
     TypeRange encFuncResultTypes, bool usePublicKey, RingAttr ring,
-    OriginalTypeAttr originalType, ImplicitLocOpBuilder &builder) {
+    ArrayRef<OriginalTypeAttr> originalTypes, ImplicitLocOpBuilder &builder) {
   // The enryption function converts each plaintext operand to its encrypted
   // form. We also have to add a public/secret key arg, and we put it at the
   // end to maintain zippability of the non-key args.
@@ -116,16 +131,17 @@ LogicalResult generateEncryptionFunc(
   SmallVector<Value> encValuesToReturn;
   for (size_t i = 0; i < encFuncArgTypes.size(); ++i) {
     auto resultTy = encFuncResultTypes[i];
+    auto originalType = originalTypes[i];
     auto operand = encFuncOp.getArgument(i);
 
     // If the output is encrypted, we need to encode and encrypt
     if (auto resultCtTy = dyn_cast<lwe::NewLWECiphertextType>(resultTy)) {
       // Apply the layout from the original type, which handles the job of
-      // converting a scalar to a tensor, and laying out a tensor in a
+      // converting a scalar to a tensor, and out a tensor in a
       // ciphertext-semantic tensor so that it can then be encoded/encrypted.
       // Note that this op still needs to be lowered, which implies the
-      // relevant patterns from convert-to-ciphertext-semantics must be
-      // run after this pass.
+      // relevant pattern from convert-to-ciphertext-semantics must be run
+      // after this pass.
       auto assignLayoutOp = builder.create<tensor_ext::AssignLayoutOp>(
           op.getLoc(), operand, originalType.getLayout());
 
@@ -151,12 +167,10 @@ LogicalResult generateEncryptionFunc(
 }
 
 /// Generates a decryption func for one or more types.
-LogicalResult generateDecryptionFunc(func::FuncOp op,
-                                     const std::string &decFuncName,
-                                     TypeRange decFuncArgTypes,
-                                     TypeRange decFuncResultTypes,
-                                     RingAttr ring,
-                                     ImplicitLocOpBuilder &builder) {
+LogicalResult generateDecryptionFunc(
+    func::FuncOp op, const std::string &decFuncName, TypeRange decFuncArgTypes,
+    TypeRange decFuncResultTypes, RingAttr ring,
+    ArrayRef<OriginalTypeAttr> originalTypes, ImplicitLocOpBuilder &builder) {
   Type decryptionKeyType = lwe::NewLWESecretKeyType::get(
       op.getContext(), KeyAttr::get(op.getContext(), 0), ring);
   SmallVector<Type> funcArgTypes(decFuncArgTypes.begin(),
@@ -170,12 +184,13 @@ LogicalResult generateDecryptionFunc(func::FuncOp op,
   builder.setInsertionPointToEnd(decFuncOp.addEntryBlock());
   Value secretKey = decFuncOp.getArgument(decFuncOp.getNumArguments() - 1);
 
+  int64_t numSlots = getNumSlots(op);
   SmallVector<Value> decValuesToReturn;
   // Use result types because arg types has the secret key at the end, but
   // result types does not
   for (size_t i = 0; i < decFuncResultTypes.size(); ++i) {
     auto argTy = decFuncArgTypes[i];
-    auto resultTy = decFuncResultTypes[i];
+    auto originalTypeAttr = originalTypes[i];
 
     // If the input is ciphertext, we need to decode and decrypt
     if (auto argCtTy = dyn_cast<lwe::NewLWECiphertextType>(argTy)) {
@@ -184,14 +199,32 @@ LogicalResult generateDecryptionFunc(func::FuncOp op,
           argCtTy.getPlaintextSpace());
       auto decrypted = builder.create<lwe::RLWEDecryptOp>(
           plaintextTy, decFuncOp.getArgument(i), secretKey);
+
+      Type dataSemanticType = originalTypeAttr.getOriginalType();
+      RankedTensorType ciphertextSemanticType = cast<RankedTensorType>(
+          isa<RankedTensorType>(dataSemanticType)
+              ? materializeLayout(cast<RankedTensorType>(dataSemanticType),
+                                  originalTypeAttr.getLayout(), numSlots)
+              : materializeScalarLayout(
+                    dataSemanticType, originalTypeAttr.getLayout(), numSlots));
       auto decoded = builder.create<lwe::RLWEDecodeOp>(
-          resultTy, decrypted.getResult(),
+          ciphertextSemanticType, decrypted.getResult(),
           argCtTy.getPlaintextSpace().getEncoding(),
           argCtTy.getPlaintextSpace().getRing());
-      // FIXME: if the input is a scalar type, we must add a tensor.extract op.
-      // The decode op's tablegen should also support having tensor types as
-      // outputs if it doesn't already.
-      decValuesToReturn.push_back(decoded.getResult());
+      Value unpacked;
+
+      // TODO(#1677): support more complex unpacking
+      if (isa<RankedTensorType>(dataSemanticType)) {
+        unpacked = decoded.getResult();
+      } else {
+        auto zero = builder.create<arith::ConstantIndexOp>(op.getLoc(), 0);
+        auto extractOp =
+            builder.create<tensor::ExtractOp>(op.getLoc(), decoded.getResult(),
+                                              /*indices=*/zero.getResult());
+        unpacked = extractOp.getResult();
+      }
+
+      decValuesToReturn.push_back(unpacked);
       continue;
     }
 
@@ -230,7 +263,7 @@ LogicalResult convertFunc(func::FuncOp op, bool usePublicKey) {
           val.getArgNumber(), kOriginalTypeAttrName);
       if (failed(generateEncryptionFunc(
               op, encFuncName, {originalTypeAttr.getOriginalType()}, {argCtTy},
-              usePublicKey, ringEnc, originalTypeAttr, builder))) {
+              usePublicKey, ringEnc, {originalTypeAttr}, builder))) {
         return failure();
       }
       // insertion point is inside func, move back out
@@ -245,10 +278,12 @@ LogicalResult convertFunc(func::FuncOp op, bool usePublicKey) {
       std::string decFuncName("");
       llvm::raw_string_ostream encNameOs(decFuncName);
       encNameOs << op.getSymName() << "__decrypt__result" << i;
+      auto originalTypeAttr =
+          op.getResultAttrOfType<OriginalTypeAttr>(i, kOriginalTypeAttrName);
       if (failed(generateDecryptionFunc(
               op, decFuncName, {returnCtTy},
               {returnCtTy.getApplicationData().getMessageType()}, ringDec,
-              builder))) {
+              {originalTypeAttr}, builder))) {
         return failure();
       }
       // insertion point is inside func, move back out
@@ -298,20 +333,6 @@ struct AddClientInterface : impl::AddClientInterfaceBase<AddClientInterface> {
         });
   }
 
-  int64_t getNumSlots() {
-    return llvm::TypeSwitch<Attribute, int64_t>(
-               getSchemeParamAttr(getOperation()))
-        .Case<bgv::SchemeParamAttr>(
-            [](auto attr) -> int64_t { return 1L << attr.getLogN(); })
-        .Case<ckks::SchemeParamAttr>(
-            [](auto attr) -> int64_t { return (1L << attr.getLogN()) / 2; })
-        .Default([this](Attribute attr) -> int64_t {
-          assert(false && "Unsupported scheme parame attribute");
-          signalPassFailure();
-          return 0;
-        });
-  }
-
   void runOnOperation() override {
     MLIRContext *context = &getContext();
     Operation *root = getOperation();
@@ -330,7 +351,7 @@ struct AddClientInterface : impl::AddClientInterfaceBase<AddClientInterface> {
     });
     if (result.wasInterrupted()) signalPassFailure();
 
-    int ciphertextSize = getNumSlots();
+    int ciphertextSize = getNumSlots(getOperation());
     LLVM_DEBUG(llvm::dbgs()
                    << "Detected num slots=" << ciphertextSize << "\n";);
     RewritePatternSet patterns(context);

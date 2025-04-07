@@ -37,18 +37,12 @@ module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 13, Q = [], P = []
 // CHECK-SAME: (%[[original_input:[^:]*]]: [[ty:[^)]*]])
 // CHECK-SAME: -> [[out_ty:[^{]*]] {
 
-// CHECK: @scalar__encrypt
-// CHECK-SAME: (%[[arg0:[^:]*]]: tensor<32xi16>,
-// CHECK-SAME:     %[[sk:.*]]: !lwe.new_lwe_secret_key
-// CHECK-SAME:     -> [[ty]] {
-// CHECK-NEXT:   %[[encoded:.*]] = lwe.rlwe_encode %[[arg0]]
-// CHECK-NEXT:   %[[encrypted:.*]] = lwe.rlwe_encrypt %[[encoded]], %[[sk]]
-// CHECK-NEXT:   return %[[encrypted]]
+// CHECK: @scalar__encrypt__arg0
+// CHECK-SAME: [[arg0:%[^:]*]]: i16
+// CHECK-NEXT: tensor.splat [[arg0]] : tensor<8192xi16>
+// CHECK-NEXT: lwe.rlwe_encode
 
-// CHECK: @scalar__decrypt
-// CHECK-SAME: (%[[arg1:[^:]*]]: [[out_ty]]
-// CHECK-SAME:     %[[sk2:.*]]: !lwe.new_lwe_secret_key
-// CHECK-SAME:     -> i16 {
-// CHECK-NEXT:   %[[decrypted:.*]] = lwe.rlwe_decrypt %[[arg1]], %[[sk2]]
-// CHECK-NEXT:   %[[decoded:.*]] = lwe.rlwe_decode %[[decrypted]]
-// CHECK-NEXT:   return %[[decoded]]
+// CHECK: @scalar__decrypt__result0
+// CHECK-SAME: -> i16
+// CHECK:        %[[extracted:.*]] = tensor.extract
+// CHECK:        return %[[extracted]]
