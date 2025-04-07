@@ -26,22 +26,8 @@ bool containsDim(ArrayRef<int64_t> dims, int64_t dim) {
 
 Value expandDims(Value value, LayoutAttr layout, ImplicitLocOpBuilder &b,
                  const std::function<void(Operation *)> &createdOpCallback) {
+  LLVM_DEBUG(llvm::dbgs() << "Expanding dims...\n");
   tensor_ext::AlignmentAttr alignment = layout.getAlignment();
-
-  // Scalars get a special case: just splat the value as a single slot
-  // in each inserted dimension.
-  if (!isa<RankedTensorType>(value.getType())) {
-    // TODO(#1662): improve scalar layout materialization
-    // This is broken, at least in that the resulting generic doesn't lower
-    // to the right loop because the iteration domain is based on the size of
-    // this tensor (<1xi16>) vs the output tensor. Maybe special case the
-    // caller of this helper, so this helper only does tensors?
-    SmallVector<int64_t> shape(1, alignment.getInsertedDims().size());
-    auto splatOp = b.create<tensor::SplatOp>(
-        RankedTensorType::get(shape, value.getType()), value);
-    createdOpCallback(splatOp);
-    return splatOp.getResult();
-  }
 
   // Tensors are handled via tensor.expand_shape
   RankedTensorType dataSemanticType = cast<RankedTensorType>(value.getType());
@@ -88,6 +74,7 @@ Value expandDims(Value value, LayoutAttr layout, ImplicitLocOpBuilder &b,
 
 Value applyPadding(Value value, LayoutAttr layout, ImplicitLocOpBuilder &b,
                    const std::function<void(Operation *)> &createdOpCallback) {
+  LLVM_DEBUG(llvm::dbgs() << "Applying padding...\n");
   RankedTensorType dataSemanticType = cast<RankedTensorType>(value.getType());
   tensor_ext::AlignmentAttr alignment = layout.getAlignment();
   // Note padding is asserted to be present, and paddingValue is enforced
@@ -117,6 +104,7 @@ FailureOr<Value> maybeReplicateAlongAxis(
     tensor_ext::AssignLayoutOp op, Value value, int axis,
     int64_t outputAxisSize, ImplicitLocOpBuilder &b,
     const std::function<void(Operation *)> &createdOpCallback) {
+  LLVM_DEBUG(llvm::dbgs() << "Replicating...\n");
   RankedTensorType mostRecentType = cast<RankedTensorType>(value.getType());
   int64_t dataDimSize = mostRecentType.getDimSize(axis);
 
@@ -150,17 +138,14 @@ FailureOr<Value> maybeReplicateAlongAxis(
   return value;
 }
 
-FailureOr<Value> implementAssignLayout(
+FailureOr<Value> implementAssignLayoutForTensor(
     tensor_ext::AssignLayoutOp op, int64_t ciphertextSize,
     ImplicitLocOpBuilder &builder,
     const std::function<void(Operation *)> &createdOpCallback) {
-  Type dataSemanticType = op.getResult().getType();
+  RankedTensorType dataSemanticType =
+      cast<RankedTensorType>(op.getValue().getType());
   RankedTensorType ciphertextSemanticType = cast<RankedTensorType>(
-      isa<RankedTensorType>(dataSemanticType)
-          ? materializeLayout(cast<RankedTensorType>(dataSemanticType),
-                              op.getLayout(), ciphertextSize)
-          : materializeScalarLayout(dataSemanticType, op.getLayout(),
-                                    ciphertextSize));
+      materializeLayout(dataSemanticType, op.getLayout(), ciphertextSize));
   LLVM_DEBUG(llvm::dbgs() << "Converting AssignLayoutOp to use result type "
                           << ciphertextSemanticType << "\n");
   Value input = op.getValue();
@@ -193,8 +178,8 @@ FailureOr<Value> implementAssignLayout(
     // 3. Replicate the input tensor along each axis via tensor.concat
     for (int i = 0; i < alignment.getOut().size(); ++i) {
       FailureOr<Value> res = maybeReplicateAlongAxis(
-          op, mostRecentOutput, i, alignment.getOut()[i], builder,
-          createdOpCallback);
+          op, mostRecentOutput, i, ciphertextSemanticType.getShape()[i],
+          builder, createdOpCallback);
       if (failed(res)) return res;
       mostRecentOutput = res.value();
     }
@@ -261,6 +246,47 @@ FailureOr<Value> implementAssignLayout(
   }
 
   return mostRecentOutput;
+}
+
+FailureOr<Value> implementAssignLayoutForScalar(
+    tensor_ext::AssignLayoutOp op, int64_t ciphertextSize,
+    ImplicitLocOpBuilder &builder,
+    const std::function<void(Operation *)> &createdOpCallback) {
+  RankedTensorType ciphertextSemanticType =
+      cast<RankedTensorType>(materializeScalarLayout(
+          op.getResult().getType(), op.getLayout(), ciphertextSize));
+  LLVM_DEBUG(
+      llvm::dbgs() << "Converting AssignLayoutOp for scalar to use result type "
+                   << ciphertextSemanticType << "\n");
+
+  LayoutAttr layout = op.getLayout();
+  tensor_ext::AlignmentAttr alignment = layout.getAlignment();
+  Value scalar = op.getValue();
+
+  // Common case: no padding, all replication: the entire encoding can be
+  // reduced to a single splat.
+  if (alignment.getPadding().empty()) {
+    auto splatOp =
+        builder.create<tensor::SplatOp>(ciphertextSemanticType, scalar);
+    createdOpCallback(splatOp);
+    return splatOp.getResult();
+  }
+
+  // TODO(#1662): improve scalar layout materialization
+  return failure();
+}
+
+FailureOr<Value> implementAssignLayout(
+    tensor_ext::AssignLayoutOp op, int64_t ciphertextSize,
+    ImplicitLocOpBuilder &builder,
+    const std::function<void(Operation *)> &createdOpCallback) {
+  if (isa<RankedTensorType>(op.getResult().getType())) {
+    return implementAssignLayoutForTensor(op, ciphertextSize, builder,
+                                          createdOpCallback);
+  }
+
+  return implementAssignLayoutForScalar(op, ciphertextSize, builder,
+                                        createdOpCallback);
 };
 
 }  // namespace heir

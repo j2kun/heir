@@ -18,15 +18,11 @@ Type materializeScalarLayout(Type type, LayoutAttr attr, int ciphertextSize) {
   // Support scalars with non-repetition layouts (e.g., in slot 0 with
   // 0-padding); currently the layout system always produces a pure-repeition
   // alignment and a trivial row-major layout.
-  llvm::dbgs() << "in materializeScalarLayout: ciphertextSize="
-               << ciphertextSize << "\n";
   return RankedTensorType::get({ciphertextSize}, type);
 }
 
 Type materializeLayout(RankedTensorType type, LayoutAttr attr,
                        int ciphertextSize) {
-  llvm::dbgs() << "in materializeLayout: ciphertextSize=" << ciphertextSize
-               << "\n";
   AffineMap layout = attr.getMap();
 
   // First extract the tensor type as expanded according to the
