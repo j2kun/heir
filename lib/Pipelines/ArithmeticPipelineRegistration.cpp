@@ -98,6 +98,26 @@ void heirSIMDVectorizerPipelineBuilder(OpPassManager &manager,
   manager.addPass(createCSEPass());
 }
 
+void lowerAssignLayout(OpPassManager &pm,
+                       const MlirToRLWEPipelineOptions &options) {
+  // Lower linalg.generics produced by ConvertToCiphertextSemantics
+  // (assign_layout lowering) to affine loops.
+  pm.addPass(createTensorLinalgToAffineLoops());
+  pm.addNestedPass<func::FuncOp>(affine::createAffineExpandIndexOpsPass());
+  pm.addNestedPass<func::FuncOp>(affine::createSimplifyAffineStructuresPass());
+  pm.addNestedPass<func::FuncOp>(affine::createAffineLoopNormalizePass(true));
+
+  // The lowered assign_layout ops involve plaintext operations that are still
+  // inside secret.generic, and are not handled well by downstream noise models
+  // and parameter selection passes. Canonicalize to hoist them out of
+  // secret.generic.
+  pm.addPass(createCanonicalizerPass());
+  pm.addPass(createCSEPass());
+
+  // TODO(#1181): remove the need to loop unroll
+  pm.addPass(createFullLoopUnroll());
+}
+
 void mlirToSecretArithmeticPipelineBuilder(
     OpPassManager &pm, const MlirToRLWEPipelineOptions &options) {
   pm.addPass(createWrapGeneric());
@@ -131,22 +151,7 @@ void mlirToSecretArithmeticPipelineBuilder(
   // Balance Operations
   pm.addPass(createOperationBalancer());
 
-  // Lower linalg.generics produced by ConvertToCiphertextSemantics
-  // (assign_layout lowering) to affine loops.
-  pm.addPass(createTensorLinalgToAffineLoops());
-  pm.addNestedPass<func::FuncOp>(affine::createAffineExpandIndexOpsPass());
-  pm.addNestedPass<func::FuncOp>(affine::createSimplifyAffineStructuresPass());
-  pm.addNestedPass<func::FuncOp>(affine::createAffineLoopNormalizePass(true));
-
-  // The lowered assign_layout ops involve plaintext operations that are still
-  // inside secret.generic, and are not handled well by downstream noise models
-  // and parameter selection passes. Canonicalize to hoist them out of
-  // secret.generic.
-  pm.addPass(createCanonicalizerPass());
-  pm.addPass(createCSEPass());
-
-  // TODO(#1181): remove the need to loop unroll
-  pm.addPass(createFullLoopUnroll());
+  lowerAssignLayout(pm, options);
 }
 
 void mlirToPlaintextPipelineBuilder(OpPassManager &pm,
@@ -339,6 +344,7 @@ void mlirToRLWEPipeline(OpPassManager &pm,
 
   // Add client interface (helper functions)
   pm.addPass(lwe::createAddClientInterface());
+  lowerAssignLayout(pm, options);
 
   // TODO (#1145): This should also generate keygen/param gen functions,
   // which can then be lowered to backend specific stuff later.
