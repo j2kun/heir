@@ -8,13 +8,13 @@ namespace heir {
 namespace lattigo {
 
 constexpr std::string_view kRlweImport =
-    "github.com/tuneinsight/lattigo/v6/core/rlwe";
+    "\"github.com/tuneinsight/lattigo/v6/core/rlwe\"";
 constexpr std::string_view kBgvImport =
-    "github.com/tuneinsight/lattigo/v6/schemes/bgv";
+    "\"github.com/tuneinsight/lattigo/v6/schemes/bgv\"";
 constexpr std::string_view kCkksImport =
-    "github.com/tuneinsight/lattigo/v6/schemes/ckks";
-constexpr std::string_view kMathImport = "math";
-constexpr std::string_view kSlicesImport = "slices";
+    "\"github.com/tuneinsight/lattigo/v6/schemes/ckks\"";
+constexpr std::string_view kMathImport = "\"math\"";
+constexpr std::string_view kSlicesImport = "\"slices\"";
 
 }  // namespace lattigo
 }  // namespace heir

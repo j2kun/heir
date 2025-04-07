@@ -71,6 +71,7 @@ class LattigoEmitter {
   LogicalResult printOperation(::mlir::func::CallOp op);
   LogicalResult printOperation(::mlir::arith::ConstantOp op);
   LogicalResult printOperation(::mlir::tensor::ExtractOp op);
+  LogicalResult printOperation(::mlir::tensor::ExtractSliceOp op);
   LogicalResult printOperation(::mlir::tensor::FromElementsOp op);
   LogicalResult printOperation(::mlir::tensor::InsertOp op);
   LogicalResult printOperation(::mlir::tensor::SplatOp op);
@@ -172,14 +173,15 @@ class LattigoEmitter {
   }
 
   // helper on name and type
-  std::string getName(::mlir::Value value) {
+  std::string getName(::mlir::Value value, bool force = false) {
     // special case for 'nil' emission
     if (value == Value()) {
       return "nil";
     }
-    // when the value has no uses, we can not assign it a name
-    // otherwise GO would complain "declared and not used"
-    if (value.use_empty()) {
+    // When the value has no uses, we can not assign it a name otherwise GO
+    // would complain "declared and not used." Force in cases when the
+    // generated code ensures the variable is referenced.
+    if (value.use_empty() && !force) {
       return "_";
     }
     return variableNames->getNameForValue(getStorageValue(value));

@@ -66,8 +66,9 @@ LogicalResult LattigoEmitter::translate(Operation &op) {
           // Arith ops
           .Case<arith::ConstantOp>([&](auto op) { return printOperation(op); })
           // Tensor ops
-          .Case<tensor::ExtractOp, tensor::InsertOp, tensor::FromElementsOp,
-                tensor::SplatOp>([&](auto op) { return printOperation(op); })
+          .Case<tensor::ExtractOp, tensor::ExtractSliceOp, tensor::InsertOp,
+                tensor::FromElementsOp, tensor::SplatOp>(
+              [&](auto op) { return printOperation(op); })
           // Lattigo ops
           .Case<
               // RLWE
@@ -333,6 +334,71 @@ LogicalResult LattigoEmitter::printOperation(tensor::ExtractOp op) {
       op.getTensor().getType(), op.getIndices(),
       [&](Value value) { return variableNames->getNameForValue(value); });
   os << "]\n";
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(tensor::ExtractSliceOp op) {
+  // Not sure if golang has a strided slice operation like python,
+  // so do it as a loop
+  RankedTensorType resultType = op.getResult().getType();
+
+  if (resultType.getRank() != op.getSourceType().getRank()) {
+    return op.emitError(
+        "Lattigo emitter for ExtractSliceOp only supports "
+        "result rank equal to source rank");
+  }
+
+  // make an array to store the output
+  //
+  //   v := [5][6][7]int32{}
+  //
+  SmallVector<std::string> arrays;
+  for (auto dim : resultType.getShape()) {
+    arrays.push_back("[" + std::to_string(dim) + "]");
+  }
+  std::string resultName = getName(op.getResult(), /*force=*/true);
+  std::string tmpName = resultName + "_array";
+  os << tmpName << " := " << llvm::join(arrays, "")
+     << convertType(resultType.getElementType()) << "{}";
+
+  SmallVector<int64_t> offsets = SmallVector<int64_t>(op.getStaticOffsets());
+  SmallVector<int64_t> sizes = SmallVector<int64_t>(op.getStaticSizes());
+  SmallVector<int64_t> strides = SmallVector<int64_t>(op.getStaticStrides());
+
+  // Loop nest to copy the right values
+  SmallVector<std::string> sourceIndexNames;
+  SmallVector<std::string> destIndexNames;
+  for (int nestLevel = 0; nestLevel < offsets.size(); nestLevel++) {
+    std::string sourceIndexName =
+        resultName + "_source_" + std::to_string(nestLevel);
+    std::string destIndexName =
+        resultName + "_dest_" + std::to_string(nestLevel);
+    sourceIndexNames.push_back(sourceIndexName);
+    destIndexNames.push_back(destIndexName);
+    os << "\nfor " << sourceIndexName << " := " << offsets[nestLevel] << "; "
+       << sourceIndexName << " < "
+       << offsets[nestLevel] + sizes[nestLevel] * strides[nestLevel] << "; "
+       << sourceIndexName << " += " << strides[nestLevel] << " {\n";
+    os.indent();
+    // Also initialise the destination index to zero
+    os << destIndexName << " := 0\n";
+  }
+
+  // Now we're in the innermost loop nest, do the assignment
+  os << tmpName << "[" << llvm::join(destIndexNames, "][")
+     << "] = " << getName(op.getSource()) << "["
+     << llvm::join(sourceIndexNames, "][") << "]\n";
+
+  // Now unindent and close the loop nest
+  for (int nestLevel = offsets.size() - 1; nestLevel >= 0; nestLevel--) {
+    // Also increment the destination indices
+    os << destIndexNames[nestLevel] << " += 1\n";
+    os.unindent();
+    os << "}\n";
+  }
+
+  // convert to slice
+  os << getName(op.getResult()) << " := " << tmpName << "[:]\n";
   return success();
 }
 
