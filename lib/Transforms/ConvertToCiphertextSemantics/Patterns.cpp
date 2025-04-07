@@ -178,8 +178,8 @@ FailureOr<Value> implementAssignLayoutForTensor(
     // 3. Replicate the input tensor along each axis via tensor.concat
     for (int i = 0; i < alignment.getOut().size(); ++i) {
       FailureOr<Value> res = maybeReplicateAlongAxis(
-          op, mostRecentOutput, i, ciphertextSemanticType.getShape()[i],
-          builder, createdOpCallback);
+          op, mostRecentOutput, i, alignment.getOut()[i], builder,
+          createdOpCallback);
       if (failed(res)) return res;
       mostRecentOutput = res.value();
     }

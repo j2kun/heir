@@ -4,9 +4,7 @@
 #include <string>
 
 #include "lib/Dialect/BGV/IR/BGVAttributes.h"
-#include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
-#include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
@@ -16,6 +14,8 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/Patterns.h"
+#include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Block.h"                 // from @llvm-project
@@ -30,6 +30,8 @@
 #include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
 #include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
+
+#define DEBUG_TYPE "lwe-add-client-interface"
 
 namespace mlir {
 namespace heir {
@@ -124,8 +126,6 @@ LogicalResult generateEncryptionFunc(
       // Note that this op still needs to be lowered, which implies the
       // relevant patterns from convert-to-ciphertext-semantics must be
       // run after this pass.
-      //
-      // FIXME: reuse ConvertAssignLayout in this pass
       auto assignLayoutOp = builder.create<tensor_ext::AssignLayoutOp>(
           op.getLoc(), operand, originalType.getLayout());
 
@@ -268,6 +268,7 @@ class LowerAssignLayout : public OpRewritePattern<tensor_ext::AssignLayoutOp> {
   LogicalResult matchAndRewrite(tensor_ext::AssignLayoutOp op,
                                 PatternRewriter &rewriter) const final {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    b.setInsertionPoint(op);
     auto res = implementAssignLayout(op, ciphertextSize, b,
                                      [&](Operation *createdOp) {});
     if (failed(res)) return failure();
@@ -283,32 +284,32 @@ struct AddClientInterface : impl::AddClientInterfaceBase<AddClientInterface> {
   using AddClientInterfaceBase::AddClientInterfaceBase;
 
   bool getUsePublicKey() {
-    bool usePublicKey = true;
-    if (moduleIsBGVOrBFV(getOperation())) {
-      auto bgvSchemeParamAttr =
-          getOperation()->getAttrOfType<bgv::SchemeParamAttr>(
-              bgv::BGVDialect::kSchemeParamAttrName);
-      if (!bgvSchemeParamAttr) {
-        getOperation()->emitError("No BGV scheme param found.");
-        signalPassFailure();
-      }
-      usePublicKey =
-          bgvSchemeParamAttr.getEncryptionType() == bgv::BGVEncryptionType::pk;
-    } else if (moduleIsCKKS(getOperation())) {
-      auto ckksSchemeParamAttr =
-          getOperation()->getAttrOfType<ckks::SchemeParamAttr>(
-              ckks::CKKSDialect::kSchemeParamAttrName);
-      if (!ckksSchemeParamAttr) {
-        getOperation()->emitError("No CKKS scheme param found.");
-        signalPassFailure();
-      }
-      usePublicKey = ckksSchemeParamAttr.getEncryptionType() ==
-                     ckks::CKKSEncryptionType::pk;
-    } else {
-      getOperation()->emitError("Unsupported RLWE scheme");
-      signalPassFailure();
-    }
-    return usePublicKey;
+    return llvm::TypeSwitch<Attribute, bool>(getSchemeParamAttr(getOperation()))
+        .Case<bgv::SchemeParamAttr>([](auto attr) {
+          return attr.getEncryptionType() == bgv::BGVEncryptionType::pk;
+        })
+        .Case<ckks::SchemeParamAttr>([](auto attr) {
+          return attr.getEncryptionType() == ckks::CKKSEncryptionType::pk;
+        })
+        .Default([this](Attribute attr) {
+          assert(false && "Unsupported scheme parame attribute");
+          signalPassFailure();
+          return false;
+        });
+  }
+
+  int64_t getNumSlots() {
+    return llvm::TypeSwitch<Attribute, int64_t>(
+               getSchemeParamAttr(getOperation()))
+        .Case<bgv::SchemeParamAttr>(
+            [](auto attr) -> int64_t { return 1L << attr.getLogN(); })
+        .Case<ckks::SchemeParamAttr>(
+            [](auto attr) -> int64_t { return (1L << attr.getLogN()) / 2; })
+        .Default([this](Attribute attr) -> int64_t {
+          assert(false && "Unsupported scheme parame attribute");
+          signalPassFailure();
+          return 0;
+        });
   }
 
   void runOnOperation() override {
@@ -329,8 +330,9 @@ struct AddClientInterface : impl::AddClientInterfaceBase<AddClientInterface> {
     });
     if (result.wasInterrupted()) signalPassFailure();
 
-    // FIXME: get ciphertext size!
-    int ciphertextSize = 0;
+    int ciphertextSize = getNumSlots();
+    LLVM_DEBUG(llvm::dbgs()
+                   << "Detected num slots=" << ciphertextSize << "\n";);
     RewritePatternSet patterns(context);
     patterns.add<LowerAssignLayout>(context, ciphertextSize);
     walkAndApplyPatterns(root, std::move(patterns));
