@@ -280,10 +280,10 @@ LogicalResult convertFunc(func::FuncOp op, bool usePublicKey) {
       encNameOs << op.getSymName() << "__decrypt__result" << i;
       auto originalTypeAttr =
           op.getResultAttrOfType<OriginalTypeAttr>(i, kOriginalTypeAttrName);
-      if (failed(generateDecryptionFunc(
-              op, decFuncName, {returnCtTy},
-              {returnCtTy.getApplicationData().getMessageType()}, ringDec,
-              {originalTypeAttr}, builder))) {
+      if (failed(generateDecryptionFunc(op, decFuncName, {returnCtTy},
+                                        {originalTypeAttr.getOriginalType()},
+                                        ringDec, {originalTypeAttr},
+                                        builder))) {
         return failure();
       }
       // insertion point is inside func, move back out
