@@ -43,8 +43,15 @@ namespace lattigo {
 LogicalResult translateToLattigo(Operation *op, llvm::raw_ostream &os,
                                  const std::string &packageName) {
   SelectVariableNames variableNames(op);
-  LattigoEmitter emitter(os, &variableNames, packageName);
+  std::string bufferedStr;
+  llvm::raw_string_ostream strOs(bufferedStr);
+  raw_indented_ostream bufferedOs(strOs);
+  LattigoEmitter emitter(bufferedOs, &variableNames, packageName);
   LogicalResult result = emitter.translate(*op);
+
+  // Now write the materialized prelude and body to the outstream.
+  emitter.emitPrelude(os);
+  os << strOs.str();
   return result;
 }
 
@@ -59,8 +66,8 @@ LogicalResult LattigoEmitter::translate(Operation &op) {
           // Arith ops
           .Case<arith::ConstantOp>([&](auto op) { return printOperation(op); })
           // Tensor ops
-          .Case<tensor::ExtractOp, tensor::InsertOp, tensor::FromElementsOp>(
-              [&](auto op) { return printOperation(op); })
+          .Case<tensor::ExtractOp, tensor::InsertOp, tensor::FromElementsOp,
+                tensor::SplatOp>([&](auto op) { return printOperation(op); })
           // Lattigo ops
           .Case<
               // RLWE
@@ -95,12 +102,16 @@ LogicalResult LattigoEmitter::translate(Operation &op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(ModuleOp moduleOp) {
-  os << "package " << packageName << "\n";
+  prelude = "package " + packageName + "\n";
 
+  // Defer prelude and imports until the end, since some ops may need extra
+  // imports injected to the `imports` list dynamically as they are emitted.
+  imports.insert(std::string(kRlweImport));
   if (moduleIsBGVOrBFV(moduleOp)) {
-    os << kModulePreludeBGVTemplate;
+    imports.insert(std::string(kBgvImport));
   } else if (moduleIsCKKS(moduleOp)) {
-    os << kModulePreludeCKKSTemplate;
+    imports.insert(std::string(kMathImport));
+    imports.insert(std::string(kCkksImport));
   } else {
     return moduleOp.emitError("Unknown scheme");
   }
@@ -342,6 +353,29 @@ LogicalResult LattigoEmitter::printOperation(tensor::FromElementsOp op) {
      << convertType(getElementTypeOrSelf(op.getResult().getType())) << "{";
   os << getCommaSeparatedNames(op.getOperands());
   os << "}\n";
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(tensor::SplatOp op) {
+  imports.insert(std::string(kSlicesImport));
+  std::string tmpVar = getName(op.getInput()) + "_0";
+  auto scalarTypeString = convertType(op.getInput().getType());
+
+  RankedTensorType resultType = op.getResult().getType();
+  if (resultType.getRank() != 1) {
+    return op.emitError("Lattigo emitter for SplatOp only supports rank 1");
+  }
+
+  // golang requires a slice input to slices.Repeat
+  //
+  //     numbers := []int{v}
+  //   repeat := slices.Repeat(numbers, 50)
+  //
+  int tensorSize = resultType.getNumElements();
+  os << tmpVar << " := []" << scalarTypeString << "{" << getName(op.getInput())
+     << "}\n";
+  os << getName(op.getResult()) << " := slices.Repeat(" << tmpVar << ", "
+     << tensorSize << ")\n";
   return success();
 }
 

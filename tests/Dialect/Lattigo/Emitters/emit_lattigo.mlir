@@ -244,3 +244,17 @@ module attributes {scheme.ckks} {
     return %v : f32
   }
 }
+
+// -----
+
+module attributes {scheme.ckks} {
+  // CHECK: func splat
+  func.func @splat(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) {
+    // CHECK:  [[v0:[^ ]*]] := int32(5)
+    // CHECK:  [[v1:[^ ]*]] := []int32{[[v0]]}
+    // CHECK:  [[v2:[^ ]*]] := slices.Repeat([[v1]], 1024)
+    %c5 = arith.constant 5 : i32
+    %splat = tensor.splat %c5 : tensor<1024xi32>
+    return
+  }
+}

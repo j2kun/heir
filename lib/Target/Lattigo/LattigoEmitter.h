@@ -40,6 +40,15 @@ class LattigoEmitter {
 
   LogicalResult translate(::mlir::Operation &operation);
 
+  void emitPrelude(raw_ostream &os) const {
+    os << "package " << packageName << "\n";
+    os << "import (\n";
+    for (const auto &import : imports) {
+      os << "    " << import << "\n";
+    }
+    os << ")\n";
+  }
+
  private:
   /// Output stream to emit to.
   raw_indented_ostream os;
@@ -50,6 +59,11 @@ class LattigoEmitter {
 
   const std::string &packageName;
 
+  // go treats unused imports as compile-time errors, so any extra imports that
+  // are unused for some programs need to be dynamically added at the end.
+  std::string prelude;
+  std::set<std::string> imports;
+
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);
   LogicalResult printOperation(::mlir::func::FuncOp op);
@@ -59,6 +73,7 @@ class LattigoEmitter {
   LogicalResult printOperation(::mlir::tensor::ExtractOp op);
   LogicalResult printOperation(::mlir::tensor::FromElementsOp op);
   LogicalResult printOperation(::mlir::tensor::InsertOp op);
+  LogicalResult printOperation(::mlir::tensor::SplatOp op);
 
   // Lattigo ops
   // RLWE
