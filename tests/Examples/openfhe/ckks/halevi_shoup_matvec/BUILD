@@ -6,7 +6,6 @@ package(default_applicable_licenses = ["@heir//:license"])
 
 openfhe_end_to_end_test(
     name = "halevi_shoup_matvec_test",
-    data = ["@heir//tests/Examples/common"],
     generated_lib_header = "halevi_shoup_matvec_lib.h",
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=ckks",
