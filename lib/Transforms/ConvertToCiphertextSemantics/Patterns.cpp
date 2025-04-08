@@ -7,7 +7,6 @@
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Utils/ReshapeOpsUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StructuredOpsUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
@@ -24,118 +23,39 @@ bool containsDim(ArrayRef<int64_t> dims, int64_t dim) {
   return llvm::any_of(dims, [dim](int64_t d) { return d == dim; });
 }
 
-Value expandDims(Value value, LayoutAttr layout, ImplicitLocOpBuilder &b,
-                 const std::function<void(Operation *)> &createdOpCallback) {
-  LLVM_DEBUG(llvm::dbgs() << "Expanding dims...\n");
-  tensor_ext::AlignmentAttr alignment = layout.getAlignment();
-
-  // Tensors are handled via tensor.expand_shape
-  RankedTensorType dataSemanticType = cast<RankedTensorType>(value.getType());
-  // It's a bit weird, but to make an expand shape op we have to group the
-  // output indices in dataSemanticType.getRank() many groups where the 1's
-  // are all grouped with axes from the dataSemanticType. But the 1's can
-  // show up before or after the data semantic tensor's dims, so we
-  // eagerly consume unit dims before and after each data semantic dim.
-  SmallVector<int64_t> newSizes;
-  SmallVector<ReassociationIndices> reassociation;
-  ReassociationIndices nextGroup;
-  int64_t ciphertextIndex = 0, groupIndex = 0;
-  while (groupIndex < dataSemanticType.getRank()) {
-    // Process all the unit dims.
-    while (containsDim(alignment.getInsertedDims(), ciphertextIndex)) {
-      newSizes.push_back(1);
-      nextGroup.push_back(ciphertextIndex);
-      ++ciphertextIndex;
-    }
-
-    // Now process exactly one data dim.
-    newSizes.push_back(dataSemanticType.getDimSize(groupIndex));
-    nextGroup.push_back(ciphertextIndex);
-    ++ciphertextIndex;
-
-    // Now process any more unit dims.
-    while (containsDim(alignment.getInsertedDims(), ciphertextIndex)) {
-      newSizes.push_back(1);
-      nextGroup.push_back(ciphertextIndex);
-      ++ciphertextIndex;
-    }
-
-    reassociation.push_back(nextGroup);
-    nextGroup.clear();
-    ++groupIndex;
-  }
-  RankedTensorType expandedType =
-      RankedTensorType::get(newSizes, dataSemanticType.getElementType());
-  auto expandOp =
-      b.create<tensor::ExpandShapeOp>(expandedType, value, reassociation);
-  createdOpCallback(expandOp);
-  return expandOp.getResult();
-}
-
 Value applyPadding(Value value, LayoutAttr layout, ImplicitLocOpBuilder &b,
                    const std::function<void(Operation *)> &createdOpCallback) {
   LLVM_DEBUG(llvm::dbgs() << "Applying padding...\n");
-  RankedTensorType dataSemanticType = cast<RankedTensorType>(value.getType());
+  // The input has already been broadcast, which implies data was replicated,
+  // so we can set the regions that should be padded with the padded value
+  // as a series of insert_slice ops
+  RankedTensorType broadcastType = cast<RankedTensorType>(value.getType());
   tensor_ext::AlignmentAttr alignment = layout.getAlignment();
-  // Note padding is asserted to be present, and paddingValue is enforced
-  // to be present whenever padding is present due to attribute verifier.
-  auto padValueOp = b.create<arith::ConstantOp>(alignment.getPaddingValue());
+  Value current = value;
+  int64_t rank = broadcastType.getRank();
+  for (int i = 0; i < rank; ++i) {
+    auto paddingAmount = alignment.getPadding()[i];
+    int64_t paddingOffset = broadcastType.getDimSize(i) - paddingAmount;
+    auto padSlice = b.create<arith::ConstantOp>(
+        RankedTensorType::get({paddingAmount}, broadcastType.getElementType()),
+        alignment.getPaddingValue());
+    createdOpCallback(padSlice);
 
-  SmallVector<int64_t> newSizes;
-  SmallVector<OpFoldResult> lows;
-  SmallVector<OpFoldResult> highs;
-  for (int i = 0; i < dataSemanticType.getRank(); ++i) {
-    newSizes.push_back(dataSemanticType.getDimSize(i) +
-                       alignment.getPadding()[i]);
-    lows.push_back(b.getIndexAttr(0));
-    highs.push_back(b.getIndexAttr(alignment.getPadding()[i]));
-  }
-  RankedTensorType expandedType =
-      RankedTensorType::get(newSizes, dataSemanticType.getElementType());
-  auto padOp = b.create<tensor::PadOp>(expandedType, value, lows, highs,
-                                       padValueOp, /*nofold=*/false);
+    SmallVector<int64_t> offsets(rank, 0);
+    SmallVector<int64_t> sizes(rank, 1);
+    SmallVector<int64_t> strides(rank, 1);
+    offsets[i] = paddingOffset;
+    sizes[i] = paddingAmount;
 
-  createdOpCallback(padOp);
-  b.setInsertionPointAfter(padOp);
-  return padOp.getResult();
-}
+    auto insertSliceOp = b.create<tensor::InsertSliceOp>(
+        padSlice, current, ArrayRef<Value>{}, ArrayRef<Value>{},
+        ArrayRef<Value>{}, offsets, sizes, strides);
+    createdOpCallback(insertSliceOp);
 
-FailureOr<Value> maybeReplicateAlongAxis(
-    tensor_ext::AssignLayoutOp op, Value value, int axis,
-    int64_t outputAxisSize, ImplicitLocOpBuilder &b,
-    const std::function<void(Operation *)> &createdOpCallback) {
-  LLVM_DEBUG(llvm::dbgs() << "Replicating...\n");
-  RankedTensorType mostRecentType = cast<RankedTensorType>(value.getType());
-  int64_t dataDimSize = mostRecentType.getDimSize(axis);
-
-  if (outputAxisSize % dataDimSize != 0 && dataDimSize % outputAxisSize != 0) {
-    auto diag = op.emitError()
-                << "Before replication, tensor size must divide or be a "
-                   "multiple of data "
-                   "size, or else repetition will not make sense!";
-    diag.attachNote()
-        << "For dim " << axis << ", target dim size was " << outputAxisSize
-        << ", but input size (after optional dim insertion and padding) was "
-        << dataDimSize;
-    return diag;
+    current = insertSliceOp.getResult();
   }
 
-  if (dataDimSize < outputAxisSize) {
-    // Concatenate appropriately
-    SmallVector<int64_t> newSizes =
-        SmallVector<int64_t>(mostRecentType.getShape());
-    newSizes[axis] = outputAxisSize;
-    RankedTensorType expandedShape =
-        RankedTensorType::get(newSizes, mostRecentType.getElementType());
-
-    int64_t numIters = outputAxisSize / dataDimSize;
-    SmallVector<Value> repeatedInputs(numIters, value);
-    auto concatOp = b.create<tensor::ConcatOp>(op.getLoc(), expandedShape,
-                                               /*axis=*/axis, repeatedInputs);
-    createdOpCallback(concatOp);
-    return concatOp.getResult();
-  }
-  return value;
+  return current;
 }
 
 FailureOr<Value> implementAssignLayoutForTensor(
@@ -163,25 +83,23 @@ FailureOr<Value> implementAssignLayoutForTensor(
   tensor_ext::AlignmentAttr alignment = layout.getAlignment();
 
   if (alignment) {
-    // 1. Insert unit dimensions via tensor.expand_shape
-    if (alignment.getInsertedDims() && !alignment.getInsertedDims().empty()) {
-      mostRecentOutput =
-          expandDims(mostRecentOutput, layout, builder, createdOpCallback);
+    // 1. Broadcast to the out shape
+    if (alignment.getIn() != alignment.getOut()) {
+      RankedTensorType outType = RankedTensorType::get(
+          alignment.getOut(), ciphertextSemanticType.getElementType());
+      auto zero =
+          builder.create<mlir::arith::ConstantOp>(builder.getZeroAttr(outType));
+      auto broadcastOp = builder.create<linalg::BroadcastOp>(
+          mostRecentOutput, zero.getResult(), alignment.getInsertedDims());
+      mostRecentOutput = broadcastOp.getResults()[0];
+      createdOpCallback(broadcastOp);
+      createdOpCallback(zero);
     }
 
-    // 2. Add padding to the end of each axis via tensor.pad
+    // 2. Apply padding by setting the padded regions to the padded value
     if (alignment.getPadding() && !alignment.getPadding().empty()) {
       mostRecentOutput =
           applyPadding(mostRecentOutput, layout, builder, createdOpCallback);
-    }
-
-    // 3. Replicate the input tensor along each axis via tensor.concat
-    for (int i = 0; i < alignment.getOut().size(); ++i) {
-      FailureOr<Value> res = maybeReplicateAlongAxis(
-          op, mostRecentOutput, i, alignment.getOut()[i], builder,
-          createdOpCallback);
-      if (failed(res)) return res;
-      mostRecentOutput = res.value();
     }
   }
 
@@ -205,9 +123,11 @@ FailureOr<Value> implementAssignLayoutForTensor(
     }
   });
 
-  // 4. Apply the layout
+  // 3. Apply the layout
   if (!layout.getMap().isIdentity()) {
     // Materialize encoding via linalg.generic.
+    //
+    // FIXME: We should have some sort of replication here
     //
     // Nb., rather than use tensor.empty(), start with constant zeros which
     // plays better with secret.generic lowerings. This implies that any
