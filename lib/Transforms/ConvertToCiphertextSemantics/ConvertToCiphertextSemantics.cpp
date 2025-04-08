@@ -119,7 +119,6 @@ struct LayoutMaterializationTypeConverter
     AffineMap layout = attr.getMap();
     MLIRContext *ctx = type.getContext();
     OpBuilder b(ctx);
-    LLVM_DEBUG(llvm::dbgs() << "Unaligned type: " << type << "\n");
 
     // First extract the tensor type as expanded according to the
     // alignment attribute.
@@ -127,7 +126,6 @@ struct LayoutMaterializationTypeConverter
     if (alignment) {
       type = RankedTensorType::get(alignment.getOut(), type.getElementType());
     }
-    LLVM_DEBUG(llvm::dbgs() << "Aligned type: " << type << "\n");
 
     // Each ciphertext will always have ciphertextSize many slots, so the main
     // goal is to determine how many ciphertexts are needed. We do this by
@@ -864,26 +862,6 @@ class ConvertLinalgReduce
   }
 };
 
-bool isLayoutSquatDiagonal(RankedTensorType inputType,
-                           RankedTensorType outputType,
-                           const AffineMap &layout) {
-  // Squat diagonal forces (i, j) -> (j % n, (i+j) % m) where (n, m) are the
-  // dimensions of the output matrix.
-  if (outputType.getRank() != 2 || inputType.getRank() != 2) return false;
-
-  int64_t n = outputType.getDimSize(0);
-  int64_t m = outputType.getDimSize(1);
-  AffineExpr i, j;
-  bindDims(inputType.getContext(), i, j);
-  AffineMap expected =
-      AffineMap::get(2, 0, {j % n, (i + j) % m}, inputType.getContext());
-
-  auto simplified = simplifyAffineMap(layout);
-  LLVM_DEBUG(llvm::dbgs() << "isLayoutSquatDiagonal: " << "simplified="
-                          << simplified << " expected=" << expected << "\n");
-  return simplified == expected;
-}
-
 struct ConvertLinalgMatvec
     : public ContextAwareOpConversionPattern<linalg::MatvecOp> {
  public:
@@ -931,6 +909,25 @@ struct ConvertLinalgMatvec
     // TODO(#1578): If the matrix has more rows than columns, what kernel
     // should be used?
     bool dimensionsCompatible = numRows <= numCols;
+
+    LLVM_DEBUG({
+      if (!dimensionsCompatible) {
+        llvm::dbgs() << "Matrix has more rows than columns, "
+                        "Halevi-Shoup kernel not supported\n";
+      }
+      if (!isRowMajor) {
+        AffineMap expected = simplifyAffineMap(
+            getRowMajorLayoutMap(vectorType, materializedVectorType));
+        llvm::dbgs() << "Vector is not row major, expected: " << expected
+                     << " but found " << vectorLayout.getMap() << "\n";
+      }
+      if (!isSquatDiagonal) {
+        AffineMap expected = simplifyAffineMap(
+            getDiagonalLayoutMap(matrixType, materializedMatrixType));
+        llvm::dbgs() << "Matrix is not squat diagonal, expected: " << expected
+                     << " but found " << matrixLayout.getMap() << "\n";
+      }
+    });
     return isSquatDiagonal && isRowMajor && dimensionsCompatible;
   }
 
@@ -1076,7 +1073,10 @@ struct ConvertLinalgMatvec
     Value matrix = op.getInputs()[0];
     Value vector = op.getInputs()[1];
 
-    if (!getLayoutAttr(matrix) || !getLayoutAttr(vector)) {
+    LayoutAttr matrixLayout = getLayoutAttr(matrix);
+    LayoutAttr vectorLayout = getLayoutAttr(vector);
+
+    if (!matrixLayout || !vectorLayout) {
       return op.emitError() << "missing layout attribute for matrix or vector";
     }
 
@@ -1086,8 +1086,9 @@ struct ConvertLinalgMatvec
     }
 
     // TODO(#1589): implement row-major naive matvec kernel
-    return op.emitError() << "unsupported layout for matrix in matvec: "
-                          << getLayoutAttr(matrix);
+    return op.emitError()
+           << "unsupported layout for matrix or vector in matvec; matrix: "
+           << matrixLayout << " vector: " << vectorLayout;
   }
 };
 
