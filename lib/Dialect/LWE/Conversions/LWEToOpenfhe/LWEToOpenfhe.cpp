@@ -189,17 +189,10 @@ struct ConvertEncodeOp : public OpConversionPattern<lwe::RLWEEncodeOp> {
 
     Value input = adaptor.getInput();
     auto elementTy = getElementTypeOrSelf(input.getType());
-
     auto tensorTy = mlir::dyn_cast<RankedTensorType>(input.getType());
-    // Replicate scalar inputs into a splat tensor with shape matching
-    // the ring dimension.
     if (!tensorTy) {
-      auto ringDegree =
-          op.getRing().getPolynomialModulus().getPolynomial().getDegree();
-      tensor::SplatOp splat = rewriter.create<tensor::SplatOp>(
-          op.getLoc(), RankedTensorType::get({ringDegree}, elementTy), input);
-      input = splat.getResult();
-      tensorTy = splat.getType();
+      return op.emitError() << "Expected a tensor type for input; maybe "
+                               "assign_layout wasn't properly lowered?";
     }
 
     // Cast inputs to the correct types for OpenFHE API.
@@ -237,9 +230,31 @@ struct ConvertEncodeOp : public OpConversionPattern<lwe::RLWEEncodeOp> {
       }
     }
 
+    // With the new layout system, the packing is inserted between this op and
+    // the source value that allows us to determine the proper underlying
+    // application data. So we find the source value from the func args and use
+    // its type.
+    //
+    // This is very dependent on the structure of add-client-interface, where
+    // the first argument is always the value to encrypt, and that this pass
+    // always inserts its cryptocontext as the first function argument.
+    //
+    // Note that this is also violating a rule of the DialectConversion
+    // framework, that you're not supposed to walk the IR during dialect
+    // conversion because the block this op is contained in may be unlinked.
+    // So long as we don't make the rest of this conversion pass too
+    // complicated (i.e., continue to modifyOpInPlace when lowering Func rather
+    // than replacing it and cloning the body region), this should be fine.
+    //
+    // But if we don't do it this way, then we need another way to get the
+    // original type, and we might be able to do it by include an attribute
+    // on the op during add-client-interface
+    Type applicationDataType =
+        op->getParentOfType<func::FuncOp>().getArgument(1).getType();
+
     lwe::NewLWEPlaintextType plaintextType = lwe::NewLWEPlaintextType::get(
         op.getContext(),
-        lwe::ApplicationDataAttr::get(adaptor.getInput().getType(),
+        lwe::ApplicationDataAttr::get(applicationDataType,
                                       lwe::NoOverflowAttr::get(getContext())),
         lwe::PlaintextSpaceAttr::get(getContext(), op.getRing(),
                                      op.getEncoding()));
