@@ -7,28 +7,23 @@
 #scalar_layout = #tensor_ext.layout<map = (d0) -> (d0 mod 1024), alignment = #scalar_alignment>
 
 // CHECK: [[alignment:[^ ]*]] = #tensor_ext.alignment<in = [8], out = [8]>
-// CHECK: [[map:[^ ]*]] = affine_map<(d0) -> (d0)>
-// CHECK: [[map1:[^ ]*]] = affine_map<(d0) -> (d0 mod 1024)>
+// CHECK: [[map:[^ ]*]] = affine_map<(d0) -> (d0 mod 1024)>
 // CHECK: [[layout:[^ ]*]] = #tensor_ext.layout<map = (d0) -> (d0 mod 1024), alignment = [[alignment]]>
 // CHECK: [[original_type:[^ ]*]] = #tensor_ext.original_type<originalType = tensor<8xi16>, layout = [[layout]]>
 // CHECK: module {
 // CHECK:   func.func @insert([[arg0:[^:]*]]: !secret.secret<tensor<1024xi16>> {tensor_ext.original_type = [[original_type]]}) -> (!secret.secret<tensor<1024xi16>> {tensor_ext.original_type = [[original_type]]}) {
 // CHECK:     [[c3:[^ ]*]] = arith.constant 3
 // CHECK:     [[c7_i16:[^ ]*]] = arith.constant 7
-// CHECK:     [[splat:[^ ]*]] = tensor.splat %c7_i16 : tensor<1xi16>
-// CHECK:     [[cst:[^ ]*]] = arith.constant dense<0> : tensor<1024xi16>
-// CHECK:     [[v0:[^ ]*]] = linalg.generic
-// CHECK-SAME:   ins([[splat]] : tensor<1xi16>) outs([[cst]] : tensor<1024xi16>) {
-//
+// CHECK:     [[splat:[^ ]*]] = tensor.splat %c7_i16 : tensor<1024xi16>
 // CHECK:     [[v1:[^ ]*]] = secret.generic ins([[arg0]] : !secret.secret<tensor<1024xi16>>) {
 // CHECK:     ^body([[input0:[^:]*]]: tensor<1024xi16>):
-// CHECK:       [[v2:[^ ]*]] = affine.apply #map1([[c3]])
+// CHECK:       [[v2:[^ ]*]] = affine.apply #map([[c3]])
 // CHECK:       [[c0:[^ ]*]] = arith.constant 0
 // CHECK:       [[cst_0:[^ ]*]] = arith.constant dense<0>
 // CHECK:       [[c1_i16:[^ ]*]] = arith.constant 1
 // CHECK:       [[inserted:[^ ]*]] = tensor.insert [[c1_i16]] into [[cst_0]][
 // CHECK-SAME:        [[c0]]
-// CHECK:       [[v3:[^ ]*]] = arith.muli [[inserted]], [[v0]]
+// CHECK:       [[v3:[^ ]*]] = arith.muli [[inserted]], [[splat]]
 // CHECK:       [[v4:[^ ]*]] = tensor_ext.rotate [[v3]], [[v2]]
 // CHECK:       [[cst_1:[^ ]*]] = arith.constant dense<1>
 // CHECK:       [[c0_i16:[^ ]*]] = arith.constant 0
