@@ -140,6 +140,13 @@ void mlirToSecretArithmeticPipelineBuilder(
   // TODO(#1662): figure out where this fits in the new pipeline
   heirSIMDVectorizerPipelineBuilder(pm, options.experimentalDisableLoopUnroll);
 
+  // Polynomial approximation and eval lowering
+  //
+  // Happens before layout assignment because constants become masked by
+  // assign_layout ops.
+  pm.addPass(createPolynomialApproximation());
+  pm.addPass(polynomial::createPolynomialToModArith());
+
   // Layout assignment and optimization
   LayoutPropagationOptions layoutPropagationOptions;
   layoutPropagationOptions.ciphertextSize = options.ciphertextDegree;
@@ -152,10 +159,6 @@ void mlirToSecretArithmeticPipelineBuilder(
   convertToCiphertextSemanticsOptions.ciphertextSize = options.ciphertextDegree;
   pm.addPass(
       createConvertToCiphertextSemantics(convertToCiphertextSemanticsOptions));
-
-  // Polynomial approximation and eval lowering
-  pm.addPass(createPolynomialApproximation());
-  pm.addPass(polynomial::createPolynomialToModArith());
 
   // Balance Operations
   pm.addPass(createOperationBalancer());
