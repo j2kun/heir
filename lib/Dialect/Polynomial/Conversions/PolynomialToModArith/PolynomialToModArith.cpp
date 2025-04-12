@@ -1428,6 +1428,8 @@ struct ConvertEvalToPatersonStockmeyerFloat
     const FloatPolynomial &poly = attr.getValue().getPolynomial();
 
     Value x = op.getOperand();
+    // HACK: force ranked tensor type
+    RankedTensorType operandType = cast<RankedTensorType>(x.getType());
     auto terms = poly.getTerms();
 
     auto type = dyn_cast<PolynomialType>(attr.getType());
@@ -1436,8 +1438,8 @@ struct ConvertEvalToPatersonStockmeyerFloat
         dyn_cast<FloatType>(type.getRing().getCoefficientType());
     if (!coeffType) return failure();
 
-    int bitWidth = coeffType.getWidth();
-    auto zeroConst = b.create<arith::ConstantFloatOp>(APFloat(0.0), coeffType);
+    auto zeroConst = b.create<arith::ConstantOp>(
+        operandType, DenseElementsAttr::get(operandType, 0.0f));
 
     if (terms.empty()) {
       rewriter.replaceOp(op, zeroConst);
@@ -1445,8 +1447,7 @@ struct ConvertEvalToPatersonStockmeyerFloat
     }
 
     int64_t maxDegree = terms.back().getExponent().getSExtValue();
-    const int DEGREE_THRESHOLD = 5;
-    if (maxDegree < DEGREE_THRESHOLD) {
+    if (maxDegree < 5) {
       return failure();
     }
 
@@ -1462,7 +1463,9 @@ struct ConvertEvalToPatersonStockmeyerFloat
 
     // Precompute x^1, x^2, ..., x^k
     std::vector<Value> xPowers(k + 1);
-    xPowers[0] = b.create<arith::ConstantFloatOp>(APFloat(1.0), coeffType);
+    auto oneConst = b.create<arith::ConstantOp>(
+        operandType, DenseElementsAttr::get(operandType, 1.0f));
+    xPowers[0] = oneConst.getResult();
     xPowers[1] = x;
     for (int64_t i = 2; i <= k; i++) {
       xPowers[i] = b.create<arith::MulFOp>(xPowers[i - 1], x).getResult();
@@ -1486,7 +1489,9 @@ struct ConvertEvalToPatersonStockmeyerFloat
           // Get the power index relative to the chunk's starting point
           int64_t powerIndex = j - lowestDegreeInChunk;
 
-          Value coeff = b.create<arith::ConstantIntOp>(coeffMap[j], bitWidth);
+          Value coeff = b.create<arith::ConstantOp>(
+              operandType,
+              DenseElementsAttr::get(operandType, float(coeffMap[j])));
           Value term;
 
           if (powerIndex == 0) {
@@ -1561,6 +1566,7 @@ void PolynomialToModArith::runOnOperation() {
   PolynomialToModArithTypeConverter typeConverter(context);
 
   target.addIllegalDialect<PolynomialDialect>();
+  target.addLegalDialect<arith::ArithDialect>();
   RewritePatternSet patterns(context);
 
   // patterns.add<ConvertFromTensor, ConvertToTensor,
