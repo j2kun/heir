@@ -14,6 +14,7 @@
 #include "lib/Dialect/Lattigo/Transforms/ConfigureCryptoContext.h"
 #include "lib/Dialect/Openfhe/Transforms/ConfigureCryptoContext.h"
 #include "lib/Dialect/Openfhe/Transforms/CountAddAndKeySwitch.h"
+#include "lib/Dialect/Polynomial/Conversions/PolynomialToModArith/PolynomialToModArith.h"
 #include "lib/Dialect/Secret/Conversions/SecretToBGV/SecretToBGV.h"
 #include "lib/Dialect/Secret/Conversions/SecretToCKKS/SecretToCKKS.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
@@ -37,6 +38,7 @@
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
+#include "lib/Transforms/PolynomialApproximation/PolynomialApproximation.h"
 #include "lib/Transforms/PopulateScale/PopulateScale.h"
 #include "lib/Transforms/PropagateAnnotation/PropagateAnnotation.h"
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
@@ -150,6 +152,10 @@ void mlirToSecretArithmeticPipelineBuilder(
   convertToCiphertextSemanticsOptions.ciphertextSize = options.ciphertextDegree;
   pm.addPass(
       createConvertToCiphertextSemantics(convertToCiphertextSemanticsOptions));
+
+  // Polynomial approximation and eval lowering
+  pm.addPass(createPolynomialApproximation());
+  pm.addPass(polynomial::createPolynomialToModArith());
 
   // Balance Operations
   pm.addPass(createOperationBalancer());
