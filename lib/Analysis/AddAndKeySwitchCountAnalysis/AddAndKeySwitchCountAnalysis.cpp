@@ -157,11 +157,13 @@ void annotateCount(Operation *top, DataFlowSolver *solver) {
   auto maxKeySwitchCount = 0;
 
   auto getCount = [&](Value value) {
-    auto state = solver->lookupState<CountLattice>(value)->getValue();
+    CountState state = solver->lookupState<CountLattice>(value)->getValue();
     // update the max
-    maxAddCount = std::max(maxAddCount, state.getAddCount());
-    maxKeySwitchCount = std::max(maxKeySwitchCount, state.getKeySwitchCount());
-    return std::make_tuple(state.getAddCount(), state.getKeySwitchCount());
+    int addCount = state.isInitialized() ? state.getAddCount() : 0;
+    int keySwitchCount = state.isInitialized() ? state.getKeySwitchCount() : 0;
+    maxAddCount = std::max(maxAddCount, addCount);
+    maxKeySwitchCount = std::max(maxKeySwitchCount, keySwitchCount);
+    return std::make_tuple(addCount, keySwitchCount);
   };
 
   top->walk<WalkOrder::PreOrder>([&](secret::GenericOp genericOp) {
@@ -184,8 +186,7 @@ void annotateCount(Operation *top, DataFlowSolver *solver) {
       if (op->getNumResults() == 0) {
         return;
       }
-      [[maybe_unused]] auto [addCount, keySwitchCount] =
-          getCount(op->getResult(0));
+      auto [addCount, keySwitchCount] = getCount(op->getResult(0));
       // only annotate each Value when debugging
       LLVM_DEBUG({
         if (addCount != 0) {
