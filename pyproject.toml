@@ -1,6 +1,6 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "heir_py"
@@ -17,8 +17,8 @@ classifiers = [
     "Topic :: Security :: Cryptography",
     "Intended Audience :: Developers",
     "Topic :: Software Development :: Compilers",
-    "License :: OSI Approved :: Apache Software License",
 ]
+license = "MIT AND Apache-2.0"
 dependencies = [
   "numba>=0.61.0",
   "numpy>=2.0.2",
@@ -33,15 +33,12 @@ dependencies = [
 Homepage = "https://github.com/google/heir"
 Issues = "https://github.com/google/heir/issues"
 
-[tool.hatch.build]
-packages = ["heir_py"]
-package-dir = {"" = "bindings/python"}
+[tool.setuptools]
+package-dir = { "" = "frontend" }
+zip-safe = false
 
-[tool.hatch.build.targets.wheel]
-sources = ["frontend"]
-
-[tool.cibuildwheel]
-build-frontend = "build"
+[tool.setuptools.packages.find]
+where = ["frontend"]
 
 [tool.pytest.ini_options]
 norecursedirs = [
