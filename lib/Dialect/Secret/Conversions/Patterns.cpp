@@ -59,9 +59,11 @@ LogicalResult ConvertClientConceal::matchAndRewrite(
   auto *ctx = op->getContext();
   Type encryptionKeyType = usePublicKey
                                ? (Type)lwe::NewLWEPublicKeyType::get(
-                                     ctx, lwe::KeyAttr::get(ctx, 0), ring)
+                                     ctx, lwe::KeyAttr::get(ctx, 0),
+                                     resultCtTy.getCiphertextSpace().getRing())
                                : (Type)lwe::NewLWESecretKeyType::get(
-                                     ctx, lwe::KeyAttr::get(ctx, 0), ring);
+                                     ctx, lwe::KeyAttr::get(ctx, 0),
+                                     resultCtTy.getCiphertextSpace().getRing());
   Value keyBlockArg =
       insertKeyArgument(parentFunc, encryptionKeyType, rewriter);
 
