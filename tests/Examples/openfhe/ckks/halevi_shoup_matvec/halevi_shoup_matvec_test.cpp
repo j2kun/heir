@@ -84,8 +84,7 @@ TEST(NaiveMatmulTest, RunTest) {
 
   // This select the first element of the matrix (0x5036cb3d =
   // 0.099224686622619628) and adds -0.45141533017158508
-  // float expected = -0.35219;
-  float expected = 0.099224686622619628;
+  float expected = -0.35219;
 
   auto arg0Encrypted =
       matvec__encrypt__arg0(cryptoContext, arg0Vals, publicKey);
