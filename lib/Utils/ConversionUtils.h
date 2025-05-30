@@ -67,20 +67,20 @@ struct ConvertAny<void> : public ConversionPattern {
   }
 };
 
-template <typename SourceArithOp, typename TargetModArithOp>
-struct ConvertBinOp : public OpConversionPattern<SourceArithOp> {
+template <typename SourceOpTy, typename TargetOpTy>
+struct ConvertBinOp : public OpConversionPattern<SourceOpTy> {
   ConvertBinOp(mlir::MLIRContext *context)
-      : OpConversionPattern<SourceArithOp>(context) {}
+      : OpConversionPattern<SourceOpTy>(context) {}
 
-  using OpConversionPattern<SourceArithOp>::OpConversionPattern;
+  using OpConversionPattern<SourceOpTy>::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
-      SourceArithOp op, typename SourceArithOp::Adaptor adaptor,
+      SourceOpTy op, typename SourceOpTy::Adaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto result = b.create<TargetModArithOp>(
-        adaptor.getLhs().getType(), adaptor.getLhs(), adaptor.getRhs());
+    auto result = b.create<TargetOpTy>(adaptor.getLhs().getType(),
+                                       adaptor.getLhs(), adaptor.getRhs());
     rewriter.replaceOp(op, result);
     return success();
   }
