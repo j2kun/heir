@@ -94,7 +94,6 @@ cc_library(
     hdrs = ["ArithmeticPipelineRegistration.h"],
     deps = [
         ":PipelineRegistration",
-        "@heir//lib/Dialect/Arith/Conversions/ArithToModArith",
         "@heir//lib/Dialect/BGV/Conversions/BGVToLWE",
         "@heir//lib/Dialect/CKKS/Conversions/CKKSToLWE",
         "@heir//lib/Dialect/LWE/Conversions/LWEToLattigo",
