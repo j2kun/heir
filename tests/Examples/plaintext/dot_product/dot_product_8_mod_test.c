@@ -24,24 +24,24 @@ void dot_product__encrypt__arg0(
     /* result */
     memref_1d *result,
     /* arg*/
-    int64_t *allocated, int64_t *aligned, int64_t offset, int64_t size,
+    int16_t *allocated, int16_t *aligned, int64_t offset, int64_t size,
     int64_t stride);
 void dot_product__encrypt__arg1(
     /* result */
     memref_1d *result,
     /* arg*/
-    int64_t *allocated, int64_t *aligned, int64_t offset, int64_t size,
+    int16_t *allocated, int16_t *aligned, int64_t offset, int64_t size,
     int64_t stride);
 
 // Decoders for the results
-int64_t dot_product__decrypt__result0(int64_t *allocated, int64_t *aligned,
+int16_t dot_product__decrypt__result0(int64_t *allocated, int64_t *aligned,
                                       int64_t offset, int64_t size,
                                       int64_t stride);
 
 int main() {
-  int64_t arg0[8] = {1, 2, 3, 4, 5, 6, 7, 8};
-  int64_t arg1[8] = {2, 3, 4, 5, 6, 7, 8, 9};
-  int64_t expected = 240;
+  int16_t arg0[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+  int16_t arg1[8] = {2, 3, 4, 5, 6, 7, 8, 9};
+  int16_t expected = 240;
 
   // "encrypt" each arg, which in plaintext means apply client-side encoding
   // logic
@@ -63,7 +63,7 @@ int main() {
               encArg1.allocated, encArg1.aligned, encArg1.offset, encArg1.size,
               encArg1.stride);
 
-  int64_t res = dot_product__decrypt__result0(
+  int16_t res = dot_product__decrypt__result0(
       packedRes.allocated, packedRes.aligned, packedRes.offset, packedRes.size,
       packedRes.stride);
 
@@ -73,7 +73,7 @@ int main() {
     return 1;
 #endif
   } else {
-    printf("Test failed %ld != %ld\n", res, expected);
+    printf("Test failed %d != %d\n", res, expected);
 #ifndef EXPECT_FAILURE
     return 1;
 #endif
