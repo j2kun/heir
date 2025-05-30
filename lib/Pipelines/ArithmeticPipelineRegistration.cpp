@@ -178,19 +178,12 @@ void mlirToPlaintextPipelineBuilder(OpPassManager &pm,
   pm.addPass(createCanonicalizerPass());
 
   // Forget secrets to convert secret types to standard types
-  pm.addPass(createSecretToModArith());
+  SecretToModArithOptions secretToModArithOptions;
+  secretToModArithOptions.plaintextModulus = options.plaintextModulus;
+  pm.addPass(createSecretToModArith(secretToModArithOptions));
   lowerAssignLayout(pm, false);
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
-
-  if (options.plaintextModulus != 0) {
-    // Convert to plaintext arithmetic in Zp
-    arith::ArithToModArithOptions arithToModArithOptions;
-    arithToModArithOptions.modulus = options.plaintextModulus;
-    pm.addPass(arith::createArithToModArith(arithToModArithOptions));
-    pm.addPass(createCanonicalizerPass());
-    pm.addPass(createCSEPass());
-  }
 
   // Convert to standard dialect
   pm.addPass(tensor_ext::createTensorExtToTensor());
