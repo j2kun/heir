@@ -9,6 +9,7 @@
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Parameters/BGV/Params.h"
 #include "lib/Parameters/CKKS/Params.h"
+#include "lib/Parameters/PlaintextParams.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/SparseAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
@@ -98,7 +99,8 @@ struct CKKSScaleModel {
 };
 
 struct PlaintextScaleModel {
-  using LocalParam = int64_t;
+  using SchemeParam = PlaintextSchemeParam;
+  using LocalParam = PlaintextSchemeParam;
 
   static int64_t evalMulScale(const LocalParam &param, int64_t lhs,
                               int64_t rhs);

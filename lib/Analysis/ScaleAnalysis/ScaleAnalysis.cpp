@@ -114,12 +114,12 @@ int64_t PlaintextScaleModel::evalMulScaleBackward(
 
 int64_t PlaintextScaleModel::evalModReduceScale(
     const PlaintextScaleModel::LocalParam &inputParam, int64_t scale) {
-  return scale - inputParam;
+  return scale - inputParam.getDefaultLogScale();
 }
 
 int64_t PlaintextScaleModel::evalModReduceScaleBackward(
     const PlaintextScaleModel::LocalParam &inputParam, int64_t resultScale) {
-  return resultScale + inputParam;
+  return resultScale + inputParam.getDefaultLogScale();
 }
 //===----------------------------------------------------------------------===//
 // ScaleAnalysis (Forward)
@@ -258,6 +258,7 @@ void ScaleAnalysis<ScaleModelT>::visitExternalCall(
 // instantiation
 template class ScaleAnalysis<BGVScaleModel>;
 template class ScaleAnalysis<CKKSScaleModel>;
+template class ScaleAnalysis<PlaintextScaleModel>;
 
 //===----------------------------------------------------------------------===//
 // ScaleAnalysis (Backward)
@@ -425,6 +426,7 @@ LogicalResult ScaleAnalysisBackward<ScaleModelT>::visitOperation(
 // instantiation
 template class ScaleAnalysisBackward<BGVScaleModel>;
 template class ScaleAnalysisBackward<CKKSScaleModel>;
+template class ScaleAnalysisBackward<PlaintextScaleModel>;
 
 //===----------------------------------------------------------------------===//
 // Utils

@@ -12,30 +12,27 @@ namespace heir {
 
 // Parameter for Plaintext backend ModuleOp level. This should only be used for
 // the plaintext pipeline, which is for debugging programs.
+// Scheme param and local param track the same thing: the default scale and
+// incremental change in scale by applying a mod_reduce op.
+//
+// E.g., if the default log scale is 4, then each input plaintext is encoded
+// with scale 16, and multiplying two plaintext will give a plaintext at scale
+// 32, which is mod_reduced back to 16.
 class PlaintextSchemeParam {
  public:
-  PlaintextSchemeParam(int logDefaultScale)
-      : logDefaultScale(logDefaultScale) {}
+  PlaintextSchemeParam(int defaultLogScale)
+      : defaultLogScale(defaultLogScale) {}
+  PlaintextSchemeParam(const PlaintextSchemeParam *other, int level,
+                       int dimension)
+      : defaultLogScale(other->defaultLogScale) {}
 
  private:
   // log of the default scale used to scale the message
-  int64_t logDefaultScale;
+  int64_t defaultLogScale;
 
  public:
-  int64_t getLogDefaultScale() const { return logDefaultScale; }
+  int64_t getDefaultLogScale() const { return defaultLogScale; }
   void print(llvm::raw_ostream &os) const;
-};
-
-// Parameter for each plaintext SSA value.
-class LocalParam {
- public:
-  LocalParam(int64_t currentLogScale) : currentLogScale(currentLogScale) {}
-
- private:
-  int64_t currentLogScale;
-
- public:
-  int64_t getCurrentLogScale() const { return currentLogScale; }
 };
 
 }  // namespace heir
