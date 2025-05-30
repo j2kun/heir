@@ -97,7 +97,20 @@ struct CKKSScaleModel {
                                             int64_t resultScale);
 };
 
-/// Forward Analyse the sclae of each secret Value
+struct PlaintextScaleModel {
+  using LocalParam = int64_t;
+
+  static int64_t evalMulScale(const LocalParam &param, int64_t lhs,
+                              int64_t rhs);
+  static int64_t evalMulScaleBackward(const LocalParam &param, int64_t result,
+                                      int64_t lhs);
+  static int64_t evalModReduceScale(const LocalParam &inputParam,
+                                    int64_t scale);
+  static int64_t evalModReduceScaleBackward(const LocalParam &inputParam,
+                                            int64_t resultScale);
+};
+
+/// Forward Analyse the scale of each secret Value
 ///
 /// This forward analysis roots from user input as `inputScale`,
 /// and after each HE operation, the scale will be updated.

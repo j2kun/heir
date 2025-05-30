@@ -6,7 +6,6 @@
 
 #include "lib/Analysis/DimensionAnalysis/DimensionAnalysis.h"
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
-#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Analysis/Utils.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
@@ -103,6 +102,25 @@ int64_t CKKSScaleModel::evalModReduceScaleBackward(
   return resultScale + logDefaultScale;
 }
 
+int64_t PlaintextScaleModel::evalMulScale(
+    const PlaintextScaleModel::LocalParam &param, int64_t lhs, int64_t rhs) {
+  return lhs + rhs;
+}
+
+int64_t PlaintextScaleModel::evalMulScaleBackward(
+    const PlaintextScaleModel::LocalParam &param, int64_t result, int64_t lhs) {
+  return result - lhs;
+}
+
+int64_t PlaintextScaleModel::evalModReduceScale(
+    const PlaintextScaleModel::LocalParam &inputParam, int64_t scale) {
+  return scale - inputParam;
+}
+
+int64_t PlaintextScaleModel::evalModReduceScaleBackward(
+    const PlaintextScaleModel::LocalParam &inputParam, int64_t resultScale) {
+  return resultScale + inputParam;
+}
 //===----------------------------------------------------------------------===//
 // ScaleAnalysis (Forward)
 //===----------------------------------------------------------------------===//

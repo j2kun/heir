@@ -17,6 +17,8 @@ constexpr const static ::llvm::StringLiteral kCKKSSchemeAttrName =
     "scheme.ckks";
 constexpr const static ::llvm::StringLiteral kCGGISchemeAttrName =
     "scheme.cggi";
+constexpr const static ::llvm::StringLiteral kPlaintextSchemeAttrName =
+    "plaintext.log_default_scale";
 
 bool moduleIsBGV(Operation *moduleOp);
 bool moduleIsBFV(Operation *moduleOp);
