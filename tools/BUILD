@@ -84,6 +84,7 @@ cc_binary(
         "@heir//lib/Dialect/Secret/Conversions/SecretToBGV",
         "@heir//lib/Dialect/Secret/Conversions/SecretToCGGI",
         "@heir//lib/Dialect/Secret/Conversions/SecretToCKKS",
+        "@heir//lib/Dialect/Secret/Conversions/SecretToModArith",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/Secret/Transforms",
         "@heir//lib/Dialect/Secret/Transforms:BufferizableOpInterface",

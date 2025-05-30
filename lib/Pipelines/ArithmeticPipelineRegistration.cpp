@@ -15,10 +15,10 @@
 #include "lib/Dialect/Openfhe/Transforms/CountAddAndKeySwitch.h"
 #include "lib/Dialect/Secret/Conversions/SecretToBGV/SecretToBGV.h"
 #include "lib/Dialect/Secret/Conversions/SecretToCKKS/SecretToCKKS.h"
+#include "lib/Dialect/Secret/Conversions/SecretToModArith/SecretToModArith.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/Transforms/AddDebugPort.h"
 #include "lib/Dialect/Secret/Transforms/DistributeGeneric.h"
-#include "lib/Dialect/Secret/Transforms/ForgetSecrets.h"
 #include "lib/Dialect/Secret/Transforms/ImportExecutionResult.h"
 #include "lib/Dialect/TensorExt/Conversions/TensorExtToTensor/TensorExtToTensor.h"
 #include "lib/Dialect/TensorExt/Transforms/CollapseInsertionChains.h"
@@ -98,9 +98,7 @@ void heirSIMDVectorizerPipelineBuilder(OpPassManager &manager,
   manager.addPass(createCSEPass());
 }
 
-void lowerAssignLayout(OpPassManager &pm,
-                       const MlirToRLWEPipelineOptions &options,
-                       bool unroll = false) {
+void lowerAssignLayout(OpPassManager &pm, bool unroll = false) {
   // Lower linalg.generics produced by ConvertToCiphertextSemantics
   // (assign_layout lowering) to affine loops.
   pm.addPass(createTensorLinalgToAffineLoops());
@@ -154,7 +152,7 @@ void mlirToSecretArithmeticPipelineBuilder(
   // Balance Operations
   pm.addPass(createOperationBalancer());
 
-  lowerAssignLayout(pm, options, false);
+  lowerAssignLayout(pm, false);
 
   // Add encrypt/decrypt helper functions for each function argument and return
   // value.
@@ -176,8 +174,12 @@ void mlirToPlaintextPipelineBuilder(OpPassManager &pm,
     pm.addPass(secret::createSecretAddDebugPort());
   }
 
+  pm.addPass(secret::createSecretDistributeGeneric());
+  pm.addPass(createCanonicalizerPass());
+
   // Forget secrets to convert secret types to standard types
-  pm.addPass(secret::createSecretForgetSecrets());
+  pm.addPass(createSecretToModArith());
+  lowerAssignLayout(pm, false);
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
 
@@ -351,7 +353,7 @@ void mlirToRLWEPipeline(OpPassManager &pm,
       exit(EXIT_FAILURE);
   }
 
-  lowerAssignLayout(pm, options, false);
+  lowerAssignLayout(pm, false);
 
   // TODO (#1145): This should also generate keygen/param gen functions,
   // which can then be lowered to backend specific stuff later.
