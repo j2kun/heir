@@ -3,26 +3,21 @@
 #include <cstdint>
 #include <utility>
 
-#include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/ModArith/IR/ModArithOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
-#include "lib/Dialect/Secret/Conversions/Patterns.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
-#include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
-#include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/IRMapping.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
@@ -31,10 +26,15 @@
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
-namespace mlir::heir {
+namespace mlir {
+namespace heir {
 
 #define GEN_PASS_DEF_SECRETTOMODARITH
 #include "lib/Dialect/Secret/Conversions/SecretToModArith/SecretToModArith.h.inc"
+
+bool isModArithOrContainerOfModArith(Type type) {
+  return isa<mod_arith::ModArithType>(getElementTypeOrSelf(type));
+}
 
 class SecretToModArithTypeConverter : public TypeConverter {
  public:
@@ -88,7 +88,10 @@ template <typename T, typename Y = T>
 class SecretGenericOpConversion
     : public OpConversionPattern<secret::GenericOp> {
  public:
-  using OpConversionPattern<secret::GenericOp>::OpConversionPattern;
+  SecretGenericOpConversion(const TypeConverter &typeConverter,
+                            MLIRContext *context, PatternBenefit benefit = 1)
+      : OpConversionPattern<secret::GenericOp>(typeConverter, context,
+                                               benefit) {}
 
   LogicalResult matchAndRewrite(
       secret::GenericOp op, OpAdaptor adaptor,
@@ -138,6 +141,180 @@ class SecretGenericOpConversion
   }
 };
 
+// This is similar to ConversionUtils::convertAnyOperand, but it requires the
+// cloning to occur on the op inside the secret generic, while using
+// type-converted operands and results of the outer generic op.
+class ConvertAnyNestedGeneric : public OpConversionPattern<secret::GenericOp> {
+ public:
+  ConvertAnyNestedGeneric(const TypeConverter &typeConverter,
+                          MLIRContext *context, PatternBenefit benefit = 1)
+      : OpConversionPattern<secret::GenericOp>(typeConverter, context,
+                                               benefit) {}
+
+  LogicalResult matchAndRewrite(
+      secret::GenericOp outerOp, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const final {
+    if (outerOp.getBody()->getOperations().size() > 2) {
+      return failure();
+    }
+    Operation *innerOp = &outerOp.getBody()->getOperations().front();
+
+    SmallVector<Value> inputs;
+    for (Value operand : innerOp->getOperands()) {
+      if (auto *secretArg = outerOp.getOpOperandForBlockArgument(operand)) {
+        inputs.push_back(adaptor.getInputs()[secretArg->getOperandNumber()]);
+      } else {
+        inputs.push_back(operand);
+      }
+    }
+
+    SmallVector<Type> resultTypes;
+    if (failed(getTypeConverter()->convertTypes(outerOp.getResultTypes(),
+                                                resultTypes)))
+      return failure();
+
+    SmallVector<std::unique_ptr<Region>, 1> regions;
+    IRMapping mapping;
+    for (auto &r : innerOp->getRegions()) {
+      Region *newRegion = new Region(innerOp);
+      rewriter.cloneRegionBefore(r, *newRegion, newRegion->end(), mapping);
+      if (failed(rewriter.convertRegionTypes(newRegion, *typeConverter)))
+        return failure();
+      regions.emplace_back(newRegion);
+    }
+
+    Operation *newOp = rewriter.create(OperationState(
+        outerOp.getLoc(), innerOp->getName().getStringRef(), inputs,
+        resultTypes, innerOp->getAttrs(), innerOp->getSuccessors(), regions));
+    rewriter.replaceOp(outerOp, newOp);
+    return success();
+  }
+};
+
+// "encode" a cleartext to mod_arith by sign extending and encapsulating it.
+Value encodeCleartext(Value cleartext, Type resultType,
+                      ImplicitLocOpBuilder &b) {
+  // We start with something like an i16 (or tensor<Nxi16>) and the result
+  // should be a (tensor of) !mod_arith.int<17 : i64> so we need to first
+  // sign extend the input to the mod_arith storage type, then encapsulate it
+  // into the mod_arith type.
+  mod_arith::ModArithType resultEltTy =
+      cast<mod_arith::ModArithType>(getElementTypeOrSelf(resultType));
+  IntegerType modulusType =
+      cast<IntegerType>(resultEltTy.getModulus().getType());
+  Type extendedType = modulusType;
+
+  if (auto shapedType = dyn_cast<ShapedType>(resultType)) {
+    extendedType = shapedType.cloneWith(shapedType.getShape(), modulusType);
+  }
+
+  auto extOp = b.create<arith::ExtSIOp>(extendedType, cleartext);
+  auto encapsulateOp =
+      b.create<mod_arith::EncapsulateOp>(resultType, extOp.getResult());
+  return encapsulateOp.getResult();
+}
+
+struct ConvertConceal : public OpConversionPattern<secret::ConcealOp> {
+  ConvertConceal(mlir::MLIRContext *context)
+      : OpConversionPattern<secret::ConcealOp>(context) {}
+
+  using OpConversionPattern<secret::ConcealOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      secret::ConcealOp op, secret::ConcealOp::Adaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    // We start with something like an i16 (or tensor<Nxi16>) and the result
+    // should be a (tensor of) !mod_arith.int<17 : i64> so we need to first
+    // sign extend the input to the mod_arith storage type, then encapsulate it
+    // into the mod_arith type.
+    Type resultType = typeConverter->convertType(op.getResult().getType());
+    Value replacementValue =
+        encodeCleartext(adaptor.getCleartext(), resultType, b);
+    rewriter.replaceOp(op, replacementValue);
+    return success();
+  }
+};
+
+struct ConvertReveal : public OpConversionPattern<secret::RevealOp> {
+  ConvertReveal(mlir::MLIRContext *context)
+      : OpConversionPattern<secret::RevealOp>(context) {}
+
+  using OpConversionPattern<secret::RevealOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      secret::RevealOp op, secret::RevealOp::Adaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    // We start with something like a secret<i16> (or secret<tensor<Nxi16>>)
+    // and type conversion gives us a (tensor of) !mod_arith.int<17 : i64> so
+    // we need to first mod_arith extract to get the result in terms of i64,
+    // then truncate to the original i16 type.
+    Type modArithTypeOrTensor = adaptor.getInput().getType();
+    auto eltTy = cast<mod_arith::ModArithType>(
+        getElementTypeOrSelf(modArithTypeOrTensor));
+    IntegerType modulusType = cast<IntegerType>(eltTy.getModulus().getType());
+    Type beforeTrunc = modulusType;
+    if (auto shapedType = dyn_cast<ShapedType>(modArithTypeOrTensor)) {
+      beforeTrunc = shapedType.cloneWith(shapedType.getShape(), modulusType);
+    }
+    Type truncatedType = op.getResult().getType();
+
+    auto extractOp =
+        b.create<mod_arith::ExtractOp>(beforeTrunc, adaptor.getInput());
+    auto truncOp =
+        b.create<arith::TruncIOp>(truncatedType, extractOp.getResult());
+    rewriter.replaceOp(op, truncOp);
+    return success();
+  }
+};
+
+// This is like
+// ContextAwareConversionUtils::SecretGenericOpCipherPlainConversion, except
+// that secret types are type converted to mod_arith, while plaintext types
+// stay as regular tensor types, and need to be "encoded" (encapsulated) into
+// mod_arith tensors, whereas for normal secret-to-scheme, there is a dedicated
+// ciphertext-plaintext op.
+template <typename T, typename Y>
+class SecretGenericOpCipherPlainConversion
+    : public SecretGenericOpConversion<T, Y> {
+ public:
+  using SecretGenericOpConversion<T, Y>::SecretGenericOpConversion;
+
+  // Ciphertext-plaintext ops should take precedence over ciphertext-ciphertext
+  // ops because the ops being converted (e.g., addi) don't have a plaintext
+  // variant.
+  SecretGenericOpCipherPlainConversion(const TypeConverter &typeConverter,
+                                       MLIRContext *context)
+      : SecretGenericOpConversion<T, Y>(typeConverter, context, /*benefit=*/3) {
+  }
+
+  FailureOr<Operation *> matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ConversionPatternRewriter &rewriter) const override {
+    // Verify that exactly one of the two inputs is a ciphertext.
+    if (inputs.size() != 2 ||
+        llvm::count_if(inputs, [&](Value input) {
+          return isModArithOrContainerOfModArith(input.getType());
+        }) != 1) {
+      return failure();
+    }
+
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    Value input0 = inputs[0];
+    Value input1 = inputs[1];
+    if (isModArithOrContainerOfModArith(input0.getType())) {
+      auto encoded = encodeCleartext(input1, input0.getType(), b);
+      auto newOp = rewriter.replaceOpWithNewOp<Y>(op, input0, encoded);
+      return newOp.getOperation();
+    }
+
+    auto encoded = encodeCleartext(input0, input1.getType(), b);
+    auto newOp = rewriter.replaceOpWithNewOp<Y>(op, encoded, input1);
+    return newOp.getOperation();
+  }
+};
+
 struct SecretToModArith : public impl::SecretToModArithBase<SecretToModArith> {
   using SecretToModArithBase::SecretToModArithBase;
 
@@ -150,17 +327,25 @@ struct SecretToModArith : public impl::SecretToModArithBase<SecretToModArith> {
     ConversionTarget target(*context);
     target.addLegalDialect<mod_arith::ModArithDialect>();
     target.addIllegalDialect<secret::SecretDialect>();
-    target.addIllegalDialect<mgmt::MgmtDialect>();
+
+    // These patterns have higher benefit to take precedence over the default
+    // pattern, which simply converts operand/result types and inlines the
+    // operation inside the generic.
+    patterns.add<
+        SecretGenericOpCipherPlainConversion<arith::AddIOp, mod_arith::AddOp>,
+        SecretGenericOpCipherPlainConversion<arith::SubIOp, mod_arith::SubOp>,
+        SecretGenericOpCipherPlainConversion<arith::MulIOp, mod_arith::MulOp> >(
+        typeConverter, context,
+        /*benefit=*/3);
 
     patterns.add<SecretGenericOpConversion<arith::AddIOp, mod_arith::AddOp>,
                  SecretGenericOpConversion<arith::SubIOp, mod_arith::SubOp>,
-                 SecretGenericOpConversion<arith::MulIOp, mod_arith::MulOp>>(
-        typeConverter, context);
+                 SecretGenericOpConversion<arith::MulIOp, mod_arith::MulOp>,
+                 ConvertReveal, ConvertConceal>(typeConverter, context,
+                                                /*benefit=*/2);
 
-    // patterns.add<ConvertClientConceal>(typeConverter, context, usePublicKey,
-    //                                    rlweRing.value());
-    // patterns.add<ConvertClientReveal>(typeConverter, context,
-    // rlweRing.value());
+    patterns.add<ConvertAnyNestedGeneric>(typeConverter, context,
+                                          /*benefit=*/1);
 
     addStructuralConversionPatterns(typeConverter, patterns, target);
 
@@ -170,4 +355,5 @@ struct SecretToModArith : public impl::SecretToModArithBase<SecretToModArith> {
   }
 };
 
-}  // namespace mlir::heir
+}  // namespace heir
+}  // namespace mlir
