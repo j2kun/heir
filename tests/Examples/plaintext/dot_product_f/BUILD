@@ -10,7 +10,7 @@ cc_library(
 plaintext_test(
     name = "dot_product_8f",
     heir_opt_flags = [
-        "--mlir-to-plaintext-backend",
+        "--mlir-to-plaintext-backend=log-scale=4",
     ],
     mlir_src = "@heir//tests/Examples/common:dot_product_8f.mlir",
     deps = [

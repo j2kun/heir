@@ -93,6 +93,11 @@ struct PlaintextBackendOptions
       llvm::cl::desc("Plaintext modulus for BGV/BFV scheme (if not specified, "
                      "execute in the original integer type)"),
       llvm::cl::init(0)};
+  PassOptions::Option<int64_t> logScale{
+      *this, "log-scale",
+      llvm::cl::desc(
+          "Log base 2 of the scale for encoding floating points as ints."),
+      llvm::cl::init(0)};
   PassOptions::Option<bool> debug{
       *this, "insert-debug-handler-calls",
       llvm::cl::desc("Insert function calls to an externally-defined debug "

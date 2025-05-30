@@ -28,6 +28,8 @@ def SecretToModArith : Pass<"secret-to-mod-arith"> {
     Option<"plaintextModulus", "modulus", "int64_t",
            /*default=*/"0", "Modulus to use for the mod-arith dialect. "
            "If not specified, the pass will use the natural modulus for that integer type">,
+    Option<"logScale", "log-scale", "int64_t",
+           /*default=*/"0", "Log base 2 of the scale for encoding floating points as ints.">,
   ];
 }
 

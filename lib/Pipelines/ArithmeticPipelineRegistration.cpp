@@ -180,6 +180,7 @@ void mlirToPlaintextPipelineBuilder(OpPassManager &pm,
   // Forget secrets to convert secret types to standard types
   SecretToModArithOptions secretToModArithOptions;
   secretToModArithOptions.plaintextModulus = options.plaintextModulus;
+  secretToModArithOptions.logScale = options.logScale;
   pm.addPass(createSecretToModArith(secretToModArithOptions));
   lowerAssignLayout(pm, false);
   pm.addPass(createCanonicalizerPass());
