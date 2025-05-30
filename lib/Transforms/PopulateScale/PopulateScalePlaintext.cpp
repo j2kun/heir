@@ -41,8 +41,14 @@ struct PopulateScalePlaintext
   using PopulateScalePlaintextBase::PopulateScalePlaintextBase;
 
   void runOnOperation() override {
-    auto logDefaultScaleAttr = mlir::dyn_cast<IntegerAttr>(
+    auto logDefaultScaleAttr = mlir::dyn_cast_or_null<IntegerAttr>(
         getOperation()->getAttr(kPlaintextSchemeAttrName));
+    if (!logDefaultScaleAttr) {
+      getOperation()->emitOpError() << "Expected a " << kPlaintextSchemeAttrName
+                                    << " attribute at the module level.\n";
+      signalPassFailure();
+      return;
+    }
     int64_t logDefaultScale = logDefaultScaleAttr.getInt();
     PlaintextSchemeParam param(logDefaultScale);
 
