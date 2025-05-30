@@ -86,6 +86,35 @@ struct ConvertBinOp : public OpConversionPattern<SourceArithOp> {
   }
 };
 
+template <typename T = void>
+struct DropOp : public ConversionPattern {
+  DropOp(const TypeConverter &typeConverter, MLIRContext *context,
+         PatternBenefit benefit = 2)
+      : ConversionPattern(typeConverter, RewritePattern::MatchAnyOpTypeTag(),
+                          /*benefit=*/2, context) {
+    setDebugName("DropOp");
+    setHasBoundedRewriteRecursion(true);
+  }
+
+  LogicalResult matchAndRewrite(
+      Operation *op, ArrayRef<Value> operands,
+      ConversionPatternRewriter &rewriter) const override {
+    if (!isa<T>(op)) {
+      return failure();
+    }
+
+    if (op->getNumOperands() != op->getNumResults()) {
+      return op->emitError()
+             << "invalid use of DropOp with op having "
+                "non-matching operand and result sizes; numOperands="
+             << op->getNumOperands() << ", numResults=" << op->getNumResults();
+    }
+
+    rewriter.replaceOp(op, operands);
+    return success();
+  }
+};
+
 // Adds conversion patterns that deal with tensor<..xsource_type>
 // when source_type will be type converted to tensor<...>, too
 void addTensorOfTensorConversionPatterns(TypeConverter &typeConverter,
