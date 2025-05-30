@@ -13,6 +13,7 @@
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
@@ -25,6 +26,8 @@
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
+
+#define DEBUG_TYPE "secret-to-mod-arith"
 
 namespace mlir {
 namespace heir {
@@ -45,7 +48,7 @@ class SecretToModArithTypeConverter : public TypeConverter {
         [this](secret::SecretType type) { return convertSecretType(type); });
   }
 
-  Type convertPlaintextType(Type type) {
+  Type convertPlaintextType(Type type) const {
     DenseMap<int64_t, int64_t> significantBitSize = {
         {64, 53},  // f64
         {32, 24},  // f32
@@ -61,9 +64,10 @@ class SecretToModArithTypeConverter : public TypeConverter {
         })
         .Case<IntegerType>([this, ctx](IntegerType intType) {
           Type newType;
+          int64_t mod = plaintextModulus;
           if (plaintextModulus == 0) {
             auto modulusBitSize = (int64_t)intType.getIntOrFloatBitWidth();
-            plaintextModulus = (1L << (modulusBitSize - 1L));
+            mod = (1L << (modulusBitSize - 1L));
             newType = mlir::IntegerType::get(intType.getContext(),
                                              modulusBitSize + 1);
           } else {
@@ -71,7 +75,7 @@ class SecretToModArithTypeConverter : public TypeConverter {
           }
 
           return mod_arith::ModArithType::get(
-              ctx, mlir::IntegerAttr::get(newType, plaintextModulus));
+              ctx, mlir::IntegerAttr::get(newType, mod));
         })
         // For the float types below, using as the modulus the natural bit size
         // of the significant (including the implicit sign bit).
@@ -84,7 +88,7 @@ class SecretToModArithTypeConverter : public TypeConverter {
         .Default([](Type t) { return t; });
   }
 
-  Type convertSecretType(secret::SecretType type) {
+  Type convertSecretType(secret::SecretType type) const {
     return convertPlaintextType(type.getValueType());
   }
 
@@ -204,6 +208,21 @@ LogicalResult ensureFloat(Value value) {
   return isa<FloatType>(cleartextEltTy) ? success() : failure();
 }
 
+TypedAttr getScaleAttr(Value cleartext, int64_t logScale,
+                       ImplicitLocOpBuilder &b) {
+  auto floatEltTy = cast<FloatType>(getElementTypeOrSelf(cleartext.getType()));
+  APFloat scale(floatEltTy.getFloatSemantics(), 1 << logScale);
+  LLVM_DEBUG({
+    llvm::dbgs() << "getScaleAttr: floatEltTy = " << floatEltTy << "\n";
+    llvm::dbgs() << "getScaleAttr: scale = " << scale << "\n";
+  });
+  if (auto shapedTy = dyn_cast<ShapedType>(cleartext.getType())) {
+    return DenseFPElementsAttr::get(shapedTy, scale);
+  }
+
+  return b.getFloatAttr(floatEltTy, scale);
+}
+
 // "encode" a cleartext to mod_arith by sign extending and encapsulating it.
 Value encodeCleartext(Value cleartext, Type resultType, int64_t logScale,
                       ImplicitLocOpBuilder &b) {
@@ -221,13 +240,10 @@ Value encodeCleartext(Value cleartext, Type resultType, int64_t logScale,
     extendedType = shapedType.cloneWith(shapedType.getShape(), modulusType);
   }
 
-  Type cleartextEltTy = getElementTypeOrSelf(cleartext.getType());
-
-  if (isa<FloatType>(cleartextEltTy)) {
+  if (isa<FloatType>(getElementTypeOrSelf(cleartext.getType()))) {
     auto scaleOp = b.create<arith::MulFOp>(
-        cleartext, b.create<arith::ConstantOp>(
-                       cleartext.getLoc(),
-                       b.getFloatAttr(cleartext.getType(), 1 << logScale)));
+        cleartext,
+        b.create<arith::ConstantOp>(getScaleAttr(cleartext, logScale, b)));
     auto convertToIntOp = b.create<arith::FPToSIOp>(extendedType, scaleOp);
     auto encapsulateOp = b.create<mod_arith::EncapsulateOp>(
         resultType, convertToIntOp.getResult());
@@ -241,10 +257,12 @@ Value encodeCleartext(Value cleartext, Type resultType, int64_t logScale,
 }
 
 struct ConvertConceal : public OpConversionPattern<secret::ConcealOp> {
-  ConvertConceal(mlir::MLIRContext *context, PatternBenefit benefit,
+  ConvertConceal(const SecretToModArithTypeConverter &typeConverter,
+                 mlir::MLIRContext *context, PatternBenefit benefit,
                  int64_t logScale)
       : OpConversionPattern<secret::ConcealOp>(context, benefit),
-        logScale(logScale) {}
+        logScale(logScale),
+        typeConv(typeConverter) {}
 
   LogicalResult matchAndRewrite(
       secret::ConcealOp op, secret::ConcealOp::Adaptor adaptor,
@@ -258,21 +276,23 @@ struct ConvertConceal : public OpConversionPattern<secret::ConcealOp> {
       return op->emitError() << "Conceal op requires a floating point "
                                 "cleartext when logScale is set";
     }
-    Value replacementValue = encodeCleartext(
-        adaptor.getCleartext(),
-        typeConverter->convertType(op.getResult().getType()), logScale, b);
+    Type convertedType = typeConv.convertSecretType(op.getResult().getType());
+    Value replacementValue =
+        encodeCleartext(adaptor.getCleartext(), convertedType, logScale, b);
     rewriter.replaceOp(op, replacementValue);
     return success();
   }
 
  private:
   int64_t logScale;
+  const SecretToModArithTypeConverter &typeConv;
 };
 
 struct ConvertReveal : public OpConversionPattern<secret::RevealOp> {
-  ConvertReveal(mlir::MLIRContext *context, PatternBenefit benefit,
+  ConvertReveal(const SecretToModArithTypeConverter &typeConverter,
+                mlir::MLIRContext *context, PatternBenefit benefit,
                 int64_t logScale)
-      : OpConversionPattern<secret::RevealOp>(context, benefit),
+      : OpConversionPattern<secret::RevealOp>(typeConverter, context, benefit),
         logScale(logScale) {}
 
   LogicalResult matchAndRewrite(
@@ -300,9 +320,7 @@ struct ConvertReveal : public OpConversionPattern<secret::RevealOp> {
 
     auto extractOp =
         b.create<mod_arith::ExtractOp>(beforeTrunc, adaptor.getInput());
-    auto truncOp =
-        b.create<arith::TruncIOp>(truncatedType, extractOp.getResult());
-    Value result = truncOp.getResult();
+    Value result = extractOp.getResult();
 
     Type cleartextEltTy = getElementTypeOrSelf(op.getResult().getType());
     if (isa<FloatType>(cleartextEltTy)) {
@@ -310,9 +328,12 @@ struct ConvertReveal : public OpConversionPattern<secret::RevealOp> {
       auto convertOp =
           b.create<arith::SIToFPOp>(op.getResult().getType(), result);
       auto scaleValueOp = b.create<arith::ConstantOp>(
-          op.getLoc(), b.getFloatAttr(op.getResult().getType(), 1 << logScale));
+          op.getLoc(), getScaleAttr(op.getResult(), logScale, b));
       auto scaleOp = b.create<arith::DivFOp>(convertOp, scaleValueOp);
       result = scaleOp.getResult();
+    } else {
+      auto truncOp = b.create<arith::TruncIOp>(truncatedType, result);
+      result = truncOp.getResult();
     }
 
     rewriter.replaceOp(op, result);
@@ -396,16 +417,21 @@ struct SecretToModArith : public impl::SecretToModArithBase<SecretToModArith> {
     // pattern, which simply converts operand/result types and inlines the
     // operation inside the generic.
     patterns.add<
+        SecretGenericOpCipherPlainConversion<arith::AddFOp, mod_arith::AddOp>,
         SecretGenericOpCipherPlainConversion<arith::AddIOp, mod_arith::AddOp>,
+        SecretGenericOpCipherPlainConversion<arith::MulFOp, mod_arith::MulOp>,
+        SecretGenericOpCipherPlainConversion<arith::MulIOp, mod_arith::MulOp>,
+        SecretGenericOpCipherPlainConversion<arith::SubFOp, mod_arith::SubOp>,
         SecretGenericOpCipherPlainConversion<arith::SubIOp, mod_arith::SubOp>,
-        SecretGenericOpCipherPlainConversion<arith::MulIOp, mod_arith::MulOp>>(
-        typeConverter, context, /*benefit=*/3, logScale);
-    patterns.add<ConvertReveal, ConvertConceal>(context,
-                                                /*benefit=*/2, logScale);
+        ConvertReveal, ConvertConceal>(typeConverter, context, /*benefit=*/3,
+                                       logScale);
 
     patterns.add<SecretGenericOpConversion<arith::AddIOp, mod_arith::AddOp>,
                  SecretGenericOpConversion<arith::SubIOp, mod_arith::SubOp>,
-                 SecretGenericOpConversion<arith::MulIOp, mod_arith::MulOp>>(
+                 SecretGenericOpConversion<arith::MulIOp, mod_arith::MulOp>,
+                 SecretGenericOpConversion<arith::AddFOp, mod_arith::AddOp>,
+                 SecretGenericOpConversion<arith::SubFOp, mod_arith::SubOp>,
+                 SecretGenericOpConversion<arith::MulFOp, mod_arith::MulOp>>(
         typeConverter, context,
         /*benefit=*/2);
 
