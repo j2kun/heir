@@ -85,6 +85,7 @@
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/SelectRewrite/SelectRewrite.h"
+#include "lib/Transforms/SetPlaintextParams/SetPlaintextParams.h"
 #include "lib/Transforms/ShapeInference/ShapeInference.h"
 #include "lib/Transforms/StraightLineVectorizer/StraightLineVectorizer.h"
 #include "lib/Transforms/TensorLinalgToAffineLoops/TensorLinalgToAffineLoops.h"
@@ -275,6 +276,7 @@ int main(int argc, char **argv) {
   registerOperationBalancerPasses();
   registerPopulateScalePasses();
   registerStraightLineVectorizerPasses();
+  registerSetPlaintextParams();
   registerUnusedMemRefPasses();
   registerValidateNoisePasses();
   registerOptimizeRelinearizationPasses();
