@@ -164,6 +164,7 @@ void mlirToPlaintextPipelineBuilder(OpPassManager &pm,
                                     const PlaintextBackendOptions &options) {
   // Convert to secret arithmetic
   MlirToRLWEPipelineOptions mlirToRLWEPipelineOptions;
+  mlirToRLWEPipelineOptions.ciphertextDegree = options.plaintextSize;
   mlirToSecretArithmeticPipelineBuilder(pm, mlirToRLWEPipelineOptions);
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
