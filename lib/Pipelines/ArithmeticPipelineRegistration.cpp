@@ -174,7 +174,7 @@ void mlirToPlaintextPipelineBuilder(OpPassManager &pm,
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
 
-  // FIXME: add insert-mgmt-plaintext pass
+  pm.addPass(createSecretInsertMgmtPlaintext());
   pm.addPass(createPopulateScalePlaintext());
 
   // FIXME: move to another spot in the pipeline to match types properly

@@ -1,27 +1,17 @@
-#include <cstdint>
-#include <iterator>
 #include <utility>
 
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Analysis/MulDepthAnalysis/MulDepthAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
-#include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Mgmt/Transforms/AnnotateMgmt.h"
-#include "lib/Dialect/Mgmt/Transforms/Passes.h"
-#include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
-#include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/SecretInsertMgmt/SecretInsertMgmtPatterns.h"
-#include "lib/Utils/Utils.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"   // from @llvm-project
-#include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"             // from @llvm-project
@@ -29,6 +19,10 @@
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 #include "mlir/include/mlir/Transforms/Passes.h"           // from @llvm-project
 #include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
+
+// IWYU pragma: begin_keep
+#include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
+// IWYU pragma: end_keep
 
 namespace mlir {
 namespace heir {
@@ -41,11 +35,18 @@ struct SecretInsertMgmtPlaintext
   using SecretInsertMgmtPlaintextBase::SecretInsertMgmtPlaintextBase;
 
   void runOnOperation() override {
+    // hardcode some options from other passes; I'm not sure we really care
+    // which values they take because this is not performance critical.
+    bool afterMul = false;
+    bool beforeMulIncludeFirstMul = false;
+    bool includeFirstMul = false;
+
     DataFlowSolver solver;
     solver.load<dataflow::DeadCodeAnalysis>();
     solver.load<dataflow::SparseConstantPropagation>();
     solver.load<SecretnessAnalysis>();
     solver.load<LevelAnalysis>();
+    solver.load<MulDepthAnalysis>();
 
     if (failed(solver.initializeAndRun(getOperation()))) {
       getOperation()->emitOpError() << "Failed to run the analysis.\n";
@@ -72,10 +73,8 @@ struct SecretInsertMgmtPlaintext
         .add<ModReduceBefore<arith::MulIOp>, ModReduceBefore<arith::MulFOp>,
              ModReduceBefore<tensor::ExtractOp>>(
             &getContext(), beforeMulIncludeFirstMul, getOperation(), &solver);
-    // includeFirstMul = false here
-    // as before yield we only want mulResult to be mod reduced
     patternsMultModReduce.add<ModReduceBefore<secret::YieldOp>>(
-        &getContext(), /*includeFirstMul*/ false, getOperation(), &solver);
+        &getContext(), includeFirstMul, getOperation(), &solver);
     (void)walkAndApplyPatterns(getOperation(),
                                std::move(patternsMultModReduce));
 
