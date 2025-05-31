@@ -3,17 +3,19 @@
 #include <cstdint>
 #include <utility>
 
+#include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
+#include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/ModArith/IR/ModArithOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
+#include "lib/Utils/APIntUtils.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
@@ -26,8 +28,6 @@
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
-
-#define DEBUG_TYPE "secret-to-mod-arith"
 
 namespace mlir {
 namespace heir {
@@ -208,15 +208,12 @@ LogicalResult ensureFloat(Value value) {
   return isa<FloatType>(cleartextEltTy) ? success() : failure();
 }
 
-TypedAttr getScaleAttr(Value cleartext, int64_t logScale,
-                       ImplicitLocOpBuilder &b) {
-  auto floatEltTy = cast<FloatType>(getElementTypeOrSelf(cleartext.getType()));
+// Construct a FloatAttr corresponding to 2^logScale, of the correct shaped
+// type matching the input value.
+TypedAttr getScaleAttr(Value value, int64_t logScale, ImplicitLocOpBuilder &b) {
+  auto floatEltTy = cast<FloatType>(getElementTypeOrSelf(value.getType()));
   APFloat scale(floatEltTy.getFloatSemantics(), 1 << logScale);
-  LLVM_DEBUG({
-    llvm::dbgs() << "getScaleAttr: floatEltTy = " << floatEltTy << "\n";
-    llvm::dbgs() << "getScaleAttr: scale = " << scale << "\n";
-  });
-  if (auto shapedTy = dyn_cast<ShapedType>(cleartext.getType())) {
+  if (auto shapedTy = dyn_cast<ShapedType>(value.getType())) {
     return DenseFPElementsAttr::get(shapedTy, scale);
   }
 
@@ -400,6 +397,101 @@ class SecretGenericOpCipherPlainConversion
   int64_t logScale;
 };
 
+// For floating point cleartexts, the plaintext backend requires converting
+// float types to mod_arith types, which hence requires a scale parameter
+// to discretize the floats. This in turn requires scale management/tracking
+// in the IR, and to avoid overflow we reuse the scale analysis/mod_reduce
+// ops to restore the original scale after each mul.
+//
+// mod_reduce just lowers to a division operation.
+struct ConvertModReduce : public SecretGenericOpConversion<mgmt::ModReduceOp> {
+  ConvertModReduce(const SecretToModArithTypeConverter &typeConverter,
+                   mlir::MLIRContext *context, PatternBenefit benefit,
+                   int64_t logScale)
+      : SecretGenericOpConversion<mgmt::ModReduceOp>(typeConverter, context,
+                                                     benefit),
+        logScale(logScale) {}
+
+  FailureOr<Operation *> matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    auto innerOp =
+        cast<mgmt::ModReduceOp>(op.getBody()->getOperations().front());
+    if (logScale && failed(ensureFloat(innerOp.getInput()))) {
+      return op->emitError() << "requires a floating point "
+                                "input when logScale is set";
+    }
+
+    // We make the assumption that the scale analysis earlier in the pipeline
+    // will always mod_reduce after each mul, so the scale is always being
+    // reduced from 2^(2*logScale) to 2^logScale. This means mod_reduce is
+    // always a division by (2^log_scale).
+    mod_arith::ModArithType modArithType = cast<mod_arith::ModArithType>(
+        getElementTypeOrSelf(inputs[0].getType()));
+    APInt modulus = modArithType.getModulus().getValue();
+    APInt scale = APInt(modulus.getBitWidth(), 1) << logScale;
+
+    if (scale.isNonPositive()) {
+      return op->emitError()
+             << "scale must be positive, got " << scale.getSExtValue()
+             << " for modulus " << modulus.getSExtValue() << " and logScale "
+             << logScale;
+    }
+
+    APInt inverseScale = multiplicativeInverse(scale, modulus);
+
+    Type inverseScaleTy = modArithType.getModulus().getType();
+    TypedAttr inverseScaleAttr = IntegerAttr::get(inverseScaleTy, inverseScale);
+    if (auto shapedType =
+            dyn_cast<ShapedType>(modArithType.getModulus().getType())) {
+      inverseScaleTy = shapedType.cloneWith(
+          shapedType.getShape(), modArithType.getModulus().getType());
+      inverseScaleAttr = DenseElementsAttr::get(shapedType, inverseScaleAttr);
+    }
+    auto scaleValueOp =
+        b.create<arith::ConstantOp>(inverseScaleTy, inverseScaleAttr);
+    auto encapsulateOp = b.create<mod_arith::EncapsulateOp>(
+        outputTypes[0], scaleValueOp.getResult());
+    auto divOp = rewriter.replaceOpWithNewOp<mod_arith::MulOp>(
+        op, inputs[0], encapsulateOp.getResult());
+    return divOp.getOperation();
+  }
+
+ private:
+  int64_t logScale;
+};
+
+// Similar to ConvertModReduce, we need to encode static cleartexts mid-IR
+// so they have the same scale as other plaintext values mid computation.
+// The scale analysis provides this by inserting mgmt.init operations, so
+// in this case mgmt.init lowers to a mul op by the scale.
+struct ConvertInit : public OpConversionPattern<mgmt::InitOp> {
+  ConvertInit(const SecretToModArithTypeConverter &typeConverter,
+              mlir::MLIRContext *context, PatternBenefit benefit,
+              int64_t logScale)
+      : OpConversionPattern<mgmt::InitOp>(typeConverter, context, benefit),
+        logScale(logScale) {}
+
+  LogicalResult matchAndRewrite(
+      mgmt::InitOp op, mgmt::InitOp::Adaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    if (logScale && failed(ensureFloat(op.getInput()))) {
+      return op->emitError() << "requires a floating point "
+                                "input when logScale is set";
+    }
+    auto scaleValueOp = b.create<arith::ConstantOp>(
+        op.getLoc(), getScaleAttr(op.getResult(), logScale, b));
+    rewriter.replaceOpWithNewOp<arith::MulFOp>(op, adaptor.getInput(),
+                                               scaleValueOp.getResult());
+    return success();
+  }
+
+ private:
+  int64_t logScale;
+};
+
 struct SecretToModArith : public impl::SecretToModArithBase<SecretToModArith> {
   using SecretToModArithBase::SecretToModArithBase;
 
@@ -412,6 +504,7 @@ struct SecretToModArith : public impl::SecretToModArithBase<SecretToModArith> {
     ConversionTarget target(*context);
     target.addLegalDialect<mod_arith::ModArithDialect>();
     target.addIllegalDialect<secret::SecretDialect>();
+    target.addIllegalDialect<mgmt::MgmtDialect>();
 
     // These patterns have higher benefit to take precedence over the default
     // pattern, which simply converts operand/result types and inlines the
@@ -423,8 +516,8 @@ struct SecretToModArith : public impl::SecretToModArithBase<SecretToModArith> {
         SecretGenericOpCipherPlainConversion<arith::MulIOp, mod_arith::MulOp>,
         SecretGenericOpCipherPlainConversion<arith::SubFOp, mod_arith::SubOp>,
         SecretGenericOpCipherPlainConversion<arith::SubIOp, mod_arith::SubOp>,
-        ConvertReveal, ConvertConceal>(typeConverter, context, /*benefit=*/3,
-                                       logScale);
+        ConvertReveal, ConvertConceal, ConvertModReduce, ConvertInit>(
+        typeConverter, context, /*benefit=*/3, logScale);
 
     patterns.add<SecretGenericOpConversion<arith::AddIOp, mod_arith::AddOp>,
                  SecretGenericOpConversion<arith::SubIOp, mod_arith::SubOp>,

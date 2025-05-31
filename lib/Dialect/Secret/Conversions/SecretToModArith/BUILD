@@ -23,6 +23,7 @@ cc_library(
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Transforms/PropagateAnnotation",
         "@heir//lib/Utils",
+        "@heir//lib/Utils:APIntUtils",
         "@heir//lib/Utils:AttributeUtils",
         "@heir//lib/Utils:ConversionUtils",
         "@heir//lib/Utils/Polynomial",
