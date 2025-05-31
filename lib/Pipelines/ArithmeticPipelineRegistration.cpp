@@ -41,6 +41,7 @@
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/SelectRewrite/SelectRewrite.h"
+#include "lib/Transforms/SetPlaintextParams/SetPlaintextParams.h"
 #include "lib/Transforms/TensorLinalgToAffineLoops/TensorLinalgToAffineLoops.h"
 #include "lib/Transforms/ValidateNoise/ValidateNoise.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"    // from @llvm-project
@@ -162,6 +163,10 @@ void mlirToSecretArithmeticPipelineBuilder(
 
 void mlirToPlaintextPipelineBuilder(OpPassManager &pm,
                                     const PlaintextBackendOptions &options) {
+  SetPlaintextParamsOptions setPlaintextParamsOptions;
+  setPlaintextParamsOptions.logScale = options.logScale;
+  pm.addPass(createSetPlaintextParams(setPlaintextParamsOptions));
+
   // Convert to secret arithmetic
   MlirToRLWEPipelineOptions mlirToRLWEPipelineOptions;
   mlirToRLWEPipelineOptions.ciphertextDegree = options.plaintextSize;
@@ -169,6 +174,10 @@ void mlirToPlaintextPipelineBuilder(OpPassManager &pm,
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
 
+  // FIXME: add insert-mgmt-plaintext pass
+  pm.addPass(createPopulateScalePlaintext());
+
+  // FIXME: move to another spot in the pipeline to match types properly
   if (options.debug) {
     // Insert debug handler calls
     pm.addPass(secret::createSecretAddDebugPort());
@@ -177,7 +186,6 @@ void mlirToPlaintextPipelineBuilder(OpPassManager &pm,
   pm.addPass(secret::createSecretDistributeGeneric());
   pm.addPass(createCanonicalizerPass());
 
-  // Forget secrets to convert secret types to standard types
   SecretToModArithOptions secretToModArithOptions;
   secretToModArithOptions.plaintextModulus = options.plaintextModulus;
   secretToModArithOptions.logScale = options.logScale;
