@@ -16,6 +16,7 @@
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
@@ -28,6 +29,8 @@
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
+
+#define DEBUG_TYPE "secret-to-mod-arith"
 
 namespace mlir {
 namespace heir {
@@ -443,11 +446,11 @@ struct ConvertModReduce : public SecretGenericOpConversion<mgmt::ModReduceOp> {
 
     Type inverseScaleTy = modArithType.getModulus().getType();
     TypedAttr inverseScaleAttr = IntegerAttr::get(inverseScaleTy, inverseScale);
-    if (auto shapedType =
-            dyn_cast<ShapedType>(modArithType.getModulus().getType())) {
-      inverseScaleTy = shapedType.cloneWith(
-          shapedType.getShape(), modArithType.getModulus().getType());
-      inverseScaleAttr = DenseElementsAttr::get(shapedType, inverseScaleAttr);
+    if (auto shapedType = dyn_cast<ShapedType>(inputs[0].getType())) {
+      inverseScaleTy =
+          shapedType.cloneWith(shapedType.getShape(), inverseScaleTy);
+      inverseScaleAttr = DenseElementsAttr::get(
+          cast<ShapedType>(inverseScaleTy), inverseScaleAttr);
     }
     auto scaleValueOp =
         b.create<arith::ConstantOp>(inverseScaleTy, inverseScaleAttr);
@@ -492,6 +495,33 @@ struct ConvertInit : public OpConversionPattern<mgmt::InitOp> {
   int64_t logScale;
 };
 
+// The debug port added in secret::AddDebugPort works on the cleartext type, so
+// to avoid type conflicts with the encoded type, we need to insert a
+// secret.reveal before the call.
+struct ConvertDebugCall : public SecretGenericOpConversion<func::CallOp> {
+  using SecretGenericOpConversion<func::CallOp>::SecretGenericOpConversion;
+
+  FailureOr<Operation *> matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ConversionPatternRewriter &rewriter) const override {
+    auto innerOp = cast<func::CallOp>(op.getBody()->getOperations().front());
+    if (innerOp.getArgOperands().size() != 1) {
+      // Debug calls have a single argument.
+      return failure();
+    }
+
+    // It's a bit strange: here we're ignoring the type converted operands
+    // because we want to do a reveal and let the reveal pattern handle the
+    // type conversion.
+    auto revealOp =
+        rewriter.create<secret::RevealOp>(op.getLoc(), op.getOperands()[0]);
+    auto newCallOp = rewriter.replaceOpWithNewOp<func::CallOp>(
+        op, innerOp.getResultTypes(), innerOp.getCallee(),
+        revealOp.getResult());
+    return newCallOp.getOperation();
+  }
+};
+
 struct SecretToModArith : public impl::SecretToModArithBase<SecretToModArith> {
   using SecretToModArithBase::SecretToModArithBase;
 
@@ -518,6 +548,7 @@ struct SecretToModArith : public impl::SecretToModArithBase<SecretToModArith> {
         SecretGenericOpCipherPlainConversion<arith::SubIOp, mod_arith::SubOp>,
         ConvertReveal, ConvertConceal, ConvertModReduce, ConvertInit>(
         typeConverter, context, /*benefit=*/3, logScale);
+    patterns.add<ConvertDebugCall>(typeConverter, context, /*benefit=*/3);
 
     patterns.add<SecretGenericOpConversion<arith::AddIOp, mod_arith::AddOp>,
                  SecretGenericOpConversion<arith::SubIOp, mod_arith::SubOp>,
@@ -542,7 +573,8 @@ struct SecretToModArith : public impl::SecretToModArithBase<SecretToModArith> {
       for (int i = 0; i < funcOp.getNumArguments(); ++i) {
         for (auto attr : funcOp.getArgAttrs(i)) {
           // the attr name is tensor_ext.foo, so just check for the prefix
-          if (attr.getName().getValue().starts_with("tensor_ext")) {
+          if (attr.getName().getValue().starts_with("tensor_ext") ||
+              attr.getName().getValue().starts_with("mgmt")) {
             funcOp.removeArgAttr(i, attr.getName());
           }
         }
@@ -550,7 +582,8 @@ struct SecretToModArith : public impl::SecretToModArithBase<SecretToModArith> {
 
       for (int i = 0; i < funcOp.getNumResults(); ++i) {
         for (auto attr : funcOp.getResultAttrs(i)) {
-          if (attr.getName().getValue().starts_with("tensor_ext")) {
+          if (attr.getName().getValue().starts_with("tensor_ext") ||
+              attr.getName().getValue().starts_with("mgmt")) {
             funcOp.removeResultAttr(i, attr.getName());
           }
         }
