@@ -37,7 +37,7 @@ struct SecretInsertMgmtPlaintext
   void runOnOperation() override {
     // hardcode some options from other passes; I'm not sure we really care
     // which values they take because this is not performance critical.
-    bool afterMul = false;
+    bool afterMul = true;
     bool beforeMulIncludeFirstMul = false;
     bool includeFirstMul = false;
 
