@@ -34,6 +34,33 @@ cc_library(
 )
 
 cc_library(
+    name = "LayoutOptimizationNew",
+    srcs = ["LayoutOptimizationNew.cpp"],
+    hdrs = ["LayoutOptimizationNew.h"],
+    deps = [
+        ":Hoisting",
+        ":InterfaceImpl",
+        ":LayoutConversionCost",
+        ":Patterns",
+        ":pass_inc_gen",
+        "@heir//lib/Dialect:HEIRInterfaces",
+        "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Kernel",
+        "@heir//lib/Utils:AttributeUtils",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LinalgInterfaces",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
+        "@llvm-project//mlir:TransformUtils",
+    ],
+)
+
+cc_library(
     name = "Hoisting",
     srcs = ["Hoisting.h"],
     hdrs = [],
