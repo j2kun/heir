@@ -79,7 +79,7 @@ cc_library(
     srcs = ["Hoisting.cpp"],
     hdrs = ["Hoisting.h"],
     deps = [
-        "@heir//lib/Layout/Utils",
+        ":Utils",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
@@ -90,6 +90,7 @@ cc_test(
     name = "HoistingTest",
     srcs = ["HoistingTest.cpp"],
     deps = [
+        ":Codegen",
         ":Hoisting",
         ":Parser",
         ":Utils",

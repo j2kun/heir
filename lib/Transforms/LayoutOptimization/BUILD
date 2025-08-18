@@ -59,7 +59,7 @@ cc_library(
         "@heir//lib/Dialect/TensorExt/IR:TensorExtAttributes",
         "@heir//lib/Dialect/TensorExt/IR:TensorExtOps",
         "@heir//lib/Kernel",
-        "@heir//lib/Utils/Layout/Hoisting",
+        "@heir//lib/Utils/Layout:Hoisting",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:LinalgDialect",
