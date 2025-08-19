@@ -79,7 +79,9 @@ cc_library(
     srcs = ["Hoisting.cpp"],
     hdrs = ["Hoisting.h"],
     deps = [
+        ":IslConversion",
         ":Utils",
+        "@isl",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",

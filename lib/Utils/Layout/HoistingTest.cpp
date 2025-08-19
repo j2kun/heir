@@ -4,6 +4,7 @@
 #include "gtest/gtest.h"  // from @googletest
 #include "lib/Utils/Layout/Codegen.h"
 #include "lib/Utils/Layout/Hoisting.h"
+#include "lib/Utils/Layout/IslConversion.h"
 #include "lib/Utils/Layout/Parser.h"
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/PresburgerSpace.h"  // from @llvm-project
@@ -26,6 +27,8 @@ void debugFailure(const IntegerRelation &expected,
   llvm::outs() << "\nActual:\n";
   actual.print(llvm::outs());
 
+  isl_ctx *ctx = isl_ctx_alloc();
+
   llvm::outs() << "Printing a sample point from expected:\n";
   auto maybeSample = expected.findIntegerSample();
   EXPECT_TRUE(maybeSample.has_value());
@@ -39,28 +42,45 @@ void debugFailure(const IntegerRelation &expected,
   llvm::outs() << "\n";
   llvm::outs().flush();
 
+  llvm::outs() << "ISL converted actual:\n";
+  auto result = convertRelationToBasicMap(actual, ctx);
+  char *resultStr = isl_basic_map_to_str(result);
+  std::string actualStr(resultStr);
+  free(resultStr);
+  llvm::outs() << actualStr << "\n";
+  llvm::outs().flush();
+
+  llvm::outs() << "ISL converted expected:\n";
+  result = convertRelationToBasicMap(expected, ctx);
+  resultStr = isl_basic_map_to_str(result);
+  std::string expectedStr(resultStr);
+  free(resultStr);
+  llvm::outs() << expectedStr << "\n";
+  llvm::outs().flush();
+
   llvm::outs() << "Codegen for actual:\n";
-  auto result = generateLoopNestAsCStr(actual);
-  if (failed(result)) {
+  auto codegenStr = generateLoopNestAsCStr(actual);
+  if (failed(codegenStr)) {
     llvm::outs() << "Failed to generate code for actual relation.\n";
   } else {
-    std::string actualCode = result.value();
+    std::string actualCode = codegenStr.value();
     llvm::outs() << actualCode << "\n";
   }
 
   llvm::outs() << "Codegen for expected:\n";
-  result = generateLoopNestAsCStr(expected);
-  if (failed(result)) {
+  codegenStr = generateLoopNestAsCStr(expected);
+  if (failed(codegenStr)) {
     llvm::outs() << "Failed to generate code for expected relation.\n";
   } else {
-    std::string expectedCode = result.value();
+    std::string expectedCode = codegenStr.value();
     llvm::outs() << expectedCode << "\n";
   }
 
   llvm::outs().flush();
+  isl_ctx_free(ctx);
 }
 
-TEST(UtilsTest, DiagonalLayout) {
+TEST(HoistingTest, DiagonalLayout) {
   MLIRContext context;
   IntegerRelation fromVecLayout = relationFromString(
       "(d, ct, slot) : "
@@ -100,14 +120,6 @@ TEST(UtilsTest, DiagonalLayout) {
   EXPECT_TRUE(maybeSample.has_value());
   SmallVector<DynamicAPInt, 8> sample = maybeSample.value();
 
-  llvm::outs() << "Sample point in actual (with locals): \n";
-  for (auto &value : sample) {
-    value.print(llvm::outs());
-    llvm::outs() << ", ";
-  }
-  llvm::outs() << "\n";
-  llvm::outs().flush();
-
   // Copy first four values which gives domain/range values
   SmallVector<DynamicAPInt, 4> point(sample.begin(), sample.begin() + 4);
   auto maybeExists = expected.containsPointNoLocal(point);
@@ -126,7 +138,6 @@ TEST(UtilsTest, DiagonalLayout) {
     debugFailure(expected, actual);
     FAIL() << "Expected point not found in actual relation.";
   }
-  EXPECT_TRUE(maybeExists.has_value());
 
   // Spot check some points
   std::vector<std::pair<int, int>> expectedDomain = {
@@ -147,6 +158,9 @@ TEST(UtilsTest, DiagonalLayout) {
       FAIL() << "Expected point not found in actual relation.";
     }
   }
+
+  debugFailure(expected, actual);
+  FAIL() << "Debug";
 }
 
 }  // namespace
