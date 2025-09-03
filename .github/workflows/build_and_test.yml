@@ -17,7 +17,22 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
-          sudo apt-get install -y libomp-dev
+          # Instructions from https://apt.llvm.org/
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+          echo "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-19 main" | sudo tee /etc/apt/sources.list.d/llvm.list
+          sudo apt update
+          sudo apt-get install -y clang-19 lld-19 libomp-19-dev
+
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-19 100
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-19 100
+          sudo update-alternatives --install /usr/bin/lld lld /usr/bin/lld-19 100
+
+      - name: Check llvm-toolchain versions
+        run: |
+          clang --version
+          clang-19 --version
+          lld-19 --version
+
       - name: Check out repository code
         uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
 

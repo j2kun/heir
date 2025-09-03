@@ -14,24 +14,29 @@ jobs:
     strategy:
       matrix:
         # since upgrading to C++20, only clang-17 and later are supported.
-        clang-version: [17, 18, 19, 20]
+        clang-version: [17, 18, 19, 20, 21]
       fail-fast: false
     runs-on:
-      labels: ubuntu-22.04-8core
+      labels: ubuntu-22.04-32core
     steps:
       - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libomp-dev
+          # Instructions from https://apt.llvm.org/, which are more consistent
+          # than Ubuntu's default set of packages (e.g., clang-20 is not in
+          # 24.04).
+          # Add the GPG key
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+          echo "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-${{ matrix.clang-version }} main" | sudo tee /etc/apt/sources.list.d/llvm.list
+          sudo apt update
+          sudo apt-get install -y clang-${{ matrix.clang-version }} lld-${{ matrix.clang-version }} libomp-${{ matrix.clang-version }}-dev
 
       - name: Check out repository code
         uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
 
-      - name: Install Clang ${{ matrix.clang-version }}
+      - name: Check llvm-toolchain-${{ matrix.clang-version }} versions
         run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-${{ matrix.clang-version }}
           clang-${{ matrix.clang-version }} --version
+          lld-${{ matrix.clang-version }} --version
 
       - name: "Run `bazel build` with Clang ${{ matrix.clang-version }}"
         run: |
