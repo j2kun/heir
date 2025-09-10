@@ -749,7 +749,10 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
     // Misc
     patterns.add<ConvertLWEReinterpretApplicationData>(typeConverter, context);
 
-    if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
+    ConversionConfig config;
+    config.allowPatternRollback = false;
+    if (failed(applyPartialConversion(module, target, std::move(patterns),
+                                      config))) {
       return signalPassFailure();
     }
 
@@ -768,8 +771,10 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
                          lattigo::RLWEPublicKeyType>(operandType);
       });
     });
+    ConversionConfig postConfig;
+    postConfig.allowPatternRollback = false;
     if (failed(applyPartialConversion(module, postTarget,
-                                      std::move(postPatterns)))) {
+                                      std::move(postPatterns), postConfig))) {
       return signalPassFailure();
     }
 
