@@ -10,6 +10,8 @@
 #include "lib/Utils/ADT/FrozenVector.h"
 #include "lib/Utils/AffineMapUtils.h"
 #include "lib/Utils/Graph/Graph.h"
+#include "lib/Utils/Layout/Utils.h"
+#include "lib/Utils/MathUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVectorExtras.h"   // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"           // from @llvm-project
@@ -33,6 +35,14 @@ namespace tensor_ext {
 #define GEN_PASS_DEF_IMPLEMENTSHIFTNETWORK
 #include "lib/Dialect/TensorExt/Transforms/Passes.h.inc"
 
+SmallVector<int64_t> defaultShiftOrder(int64_t n) {
+  SmallVector<int64_t> result;
+  int64_t maxLog2 = APInt(64, n).getActiveBits();
+  if (isPowerOfTwo(n)) maxLog2 -= 1;
+  for (int64_t i = 0; i < maxLog2; i++) result.push_back(1 << i);
+  return result;
+}
+
 // Convert an input->output index mapping to a canonical left-shift amount for
 // a given tensor size.
 // Example: 1 -> 13 with a 64-size tensor should produce a rotation of 52
@@ -47,86 +57,70 @@ inline int64_t normalizeShift(int64_t input, int64_t output,
   return shift;
 }
 
-SmallVector<ShiftRound> ShiftStrategy::getRounds() const { return rounds; }
-
-void ShiftStrategy::evaluate(const Permutation& permutation,
-                             const RotationGroup& group) {
-  int64_t ciphertextSize = permutation.size();
-
-  // Stores the amount that each ciphertext index is shifted left. The
-  // RotationGroup might be a subset of indices, so we have to populate the
-  // entire set of shifts with zeros except possibly for those in the
-  // RotationGroup (some of those may also be zero if they're fixed points of
-  // the permutation).
-  SmallVector<int64_t> shifts;
-  shifts.resize(ciphertextSize, 0);
-  for (int64_t index : group) {
-    shifts[index] = normalizeShift(index, permutation[index], ciphertextSize);
-  }
-
-  LLVM_DEBUG({
-    llvm::dbgs() << "Shifts for permutation: ";
-    for (int64_t shift : shifts) {
-      llvm::dbgs() << shift << " ";
-    }
-    llvm::dbgs() << "\n";
-  });
-
-  // The identity permutation is a base case where no shifts are applied.
-  Permutation identityPerm = FrozenVector<int64_t>(identity(ciphertextSize));
-  for (int64_t rotationAmount = 1; rotationAmount < ciphertextSize;
-       rotationAmount <<= 1) {
-    ShiftRound round;
-    ArrayRef<int64_t> lastRoundPositions =
-        !rounds.empty() ? ArrayRef<int64_t>(rounds.back().positions)
-                        : identityPerm;
-    int inputIndex = 0;
-    for (int64_t shift : shifts) {
-      // The bit is set, implying we would rotate by 2**bit in this round
-      if (shift & rotationAmount) {
-        // subtract because we are left-shifting by a positive amount
-        int64_t dest = lastRoundPositions[inputIndex] - rotationAmount;
-        if (dest < 0) {
-          dest += ciphertextSize;  // wrap around the bottom of the vector
-        }
-        round.positions.push_back(dest);
-        round.rotatedIndices.push_back(inputIndex);
-      } else {
-        // Otherwise the value is unchanged from last round
-        round.positions.push_back(lastRoundPositions[inputIndex]);
-      }
-      ++inputIndex;
-    }
-    round.rotationAmount = rotationAmount;
-    rounds.push_back(round);
-    LLVM_DEBUG({
-      llvm::dbgs() << "Round " << rotationAmount << ": ";
-      int inputIndex = 0;
-      for (int64_t index : round.positions) {
-        llvm::dbgs() << inputIndex++ << ": " << index << ", ";
-      }
-      llvm::dbgs() << "\n";
-      llvm::dbgs() << "Indices affected: ";
-      for (int64_t index : round.rotatedIndices) {
-        llvm::dbgs() << index << " ";
-      }
-      llvm::dbgs() << "\n";
-    });
-  }
+int64_t ShiftStrategy::getVirtualShift(const CtSlot& source,
+                                       const CtSlot& target) const {
+  int64_t sourceIndex = source.ct * ciphertextSize + source.slot;
+  int64_t targetIndex = target.ct * ciphertextSize + target.slot;
+  return normalizeShift(sourceIndex, targetIndex, virtualCiphertextSize);
 }
 
-ArrayRef<RotationGroup> VosVosErkinShiftNetworks::computeShiftNetwork(
-    const Permutation& permutation) {
-  if (rotationGroups.count(permutation)) {
-    return rotationGroups[permutation];
+SmallVector<ShiftRound> ShiftStrategy::evaluate(const Mapping& mapping) const {
+  // First compute the virtual shifts needed for each source slot
+  SmallVector<SourceShift> sourceShifts;
+  sourceShifts.reserve(mapping.size());
+  for (const MappingEntry& entry : mapping) {
+    int64_t shift = getVirtualShift(entry.source, entry.target);
+    SmallVector<int64_t> neededShifts;
+    sourceShifts.push_back({entry.source, shift});
   }
 
-  ShiftStrategy strategy;
-  RotationGroup allIndices;
-  for (int64_t i = 0; i < ciphertextSize; i++) {
-    allIndices.insert(i);
+  // Compute the corresponding table of positions after each rotation,
+  // akin to the table in Figure 3 of the Vos-Vos-Erkin paper, including the
+  // first column of values that have not yet been rotated.
+  SmallVector<ShiftRound> rounds;
+  rounds.reserve(shiftOrder.size() + 1);
+  ShiftRound initialRound;
+  for (const SourceShift& ss : sourceShifts) {
+    initialRound.positions[ss] = ss.source;
+    initialRound.rotationAmount = 0;
   }
-  strategy.evaluate(permutation, allIndices);
+  rounds.push_back(initialRound);
+
+  for (auto rotationAmount : shiftOrder) {
+    auto lastRoundPositions = rounds.back().positions;
+    DenseMap<SourceShift, CtSlot> currentRoundPosns;
+
+    for (const SourceShift& key : sourceShifts) {
+      assert(lastRoundPositions.contains(key) &&
+             "Expected to find source in last round positions");
+      CtSlot currentPos = lastRoundPositions[key];
+      int64_t currentVirtualSlot =
+          currentPos.ct * ciphertextSize + currentPos.slot;
+
+      CtSlot nextPosition = currentPos;
+      if (rotationAmount & key.shift) {
+        currentVirtualSlot =
+            (currentVirtualSlot + rotationAmount) % virtualCiphertextSize;
+        nextPosition = CtSlot{currentVirtualSlot / ciphertextSize,
+                              currentVirtualSlot % ciphertextSize};
+      }
+      currentRoundPosns[key] = nextPosition;
+    }
+
+    rounds.push_back({currentRoundPosns, rotationAmount});
+  }
+
+  return rounds;
+}
+
+ShiftScheme VosVosErkinShiftNetworks::findShiftScheme(const Mapping& mapping) {
+  if (schemeCache.count(mapping)) {
+    return schemeCache[mapping];
+  }
+
+  // FIXME: try many shift orders and pick the best
+  ShiftStrategy strategy(ciphertextSize, numCiphertexts, shiftOrder);
+  strategy.evaluate(mapping);
 
   // Create a graph whose vertices are the input indices to permute, and
   // whose edges are conflicts: an edge being present means the two indices
@@ -135,11 +129,22 @@ ArrayRef<RotationGroup> VosVosErkinShiftNetworks::computeShiftNetwork(
   for (int64_t i = 0; i < ciphertextSize; i++) {
     conflictGraph.addVertex(i);
   }
-  for (const ShiftRound& round : strategy.getRounds()) {
-    for (int64_t i = 0; i < ciphertextSize; i++) {
-      for (int64_t j = i + 1; j < ciphertextSize; j++) {
-        if (round.positions[i] == round.positions[j]) {
-          conflictGraph.addEdge(i, j);
+  for (const auto& [roundNum, round] : llvm::enumerate(strategy.getRounds())) {
+    if (roundNum == 0) continue;
+
+    auto posns = round.positions;
+    for (auto it1 = posns.begin(); it1 != posns.end(); ++it1) {
+      for (auto it2 = std::next(it1); it2 != posns.end(); ++it2) {
+        const SourceShift& ss1 = it1->first;
+        const SourceShift& ss2 = it2->first;
+        if (ss1.source != ss2.source && it1->second == it2->second) {
+          LLVM_DEBUG(llvm::dbgs()
+                     << "Round " << roundNum << ": collision between " << "{"
+                     << ss1.source.ct << "," << ss1.source.slot << "}"
+                     << " and " << "{" << ss2.source.ct << ","
+                     << ss2.source.slot << "}" << " at " << "{"
+                     << it1->second.ct << "," << it1->second.slot << "}\n");
+          conflictGraph.addEdge(ss1.source.slot, ss2.source.slot);
         }
       }
     }
@@ -160,7 +165,7 @@ ArrayRef<RotationGroup> VosVosErkinShiftNetworks::computeShiftNetwork(
   std::unordered_map<int64_t, int> coloring = colorer.color(conflictGraph);
 
   SmallVector<RotationGroup> resultRotationGroups;
-  resultRotationGroups.reserve(64);
+  resultRotationGroups.reserve(5);
   for (const auto& entry : coloring) {
     int64_t index = entry.first;
     int64_t color = entry.second;
@@ -171,7 +176,7 @@ ArrayRef<RotationGroup> VosVosErkinShiftNetworks::computeShiftNetwork(
   }
 
   LLVM_DEBUG({
-    llvm::dbgs() << "Splitting permutation into permutation groups:\n";
+    llvm::dbgs() << "Splitting mapping into rotation groups:\n";
     for (int i = 0; i < resultRotationGroups.size(); i++) {
       llvm::dbgs() << "Group " << i << ": ";
       llvm::SmallVector<int64_t> group = llvm::SmallVector<int64_t>(
@@ -184,12 +189,9 @@ ArrayRef<RotationGroup> VosVosErkinShiftNetworks::computeShiftNetwork(
     }
   });
 
-  rotationGroups[permutation] = resultRotationGroups;
-  return rotationGroups[permutation];
-}
-
-int64_t VosVosErkinShiftNetworks::getCiphertextSize() const {
-  return ciphertextSize;
+  ShiftScheme scheme{resultRotationGroups, strategy};
+  schemeCache[mapping] = scheme;
+  return schemeCache[mapping];
 }
 
 // Create a tensor with zeros everywhere except for the indices specified in
@@ -209,42 +211,14 @@ Value createMask(TypedValue<RankedTensorType> tensor,
   return constant.getResult();
 }
 
-Value rotateGroup(TypedValue<RankedTensorType> tensor,
-                  const RotationGroup& group, int64_t ciphertextSize,
-                  const Permutation& permutation, IRRewriter& rewriter) {
-  std::optional<Value> result = std::nullopt;
+SmallVector<Value> rotateOneGroup(ArrayRef<Value> initialCiphertexts,
+                                  ArrayRef<SourceShift> sourceShifts,
+                                  ArrayRef<ShiftRound> rounds,
+                                  const RotationGroup& group,
+                                  IRRewriter& rewriter) {
+  SmallVector<Value> results;
 
-  // Re-run the shift strategy on a single rotation group, and use the
-  // rotatedIndices in each round to construct a mask and a rotation op.
-  ShiftStrategy strategy;
-  strategy.evaluate(permutation, group);
-
-  [[maybe_unused]] int roundNum = 0;
-  for (const ShiftRound& round : strategy.getRounds()) {
-    int64_t rotationAmount = round.rotationAmount;
-    if (round.rotatedIndices.empty()) {
-      LLVM_DEBUG(llvm::dbgs() << "Skipping shift by " << rotationAmount
-                              << " because no inputs have that bit set\n");
-      continue;
-    }
-
-    Value mask = createMask(tensor, round.rotatedIndices, rewriter);
-    arith::MulIOp maskOp =
-        arith::MulIOp::create(rewriter, tensor.getLoc(), tensor, mask);
-    Value rotated = tensor_ext::RotateOp::create(
-        rewriter, tensor.getLoc(), maskOp.getResult(),
-        arith::ConstantIntOp::create(rewriter, tensor.getLoc(),
-                                     rewriter.getI32Type(), rotationAmount));
-
-    if (result.has_value()) {
-      result = arith::AddIOp::create(rewriter, tensor.getLoc(), result.value(),
-                                     rotated);
-    } else {
-      result = rotated;
-    }
-  }
-
-  return result.has_value() ? result.value() : tensor;
+  return results;
 }
 
 LogicalResult convertPermuteOp(PermuteOp op,
@@ -253,71 +227,79 @@ LogicalResult convertPermuteOp(PermuteOp op,
   LLVM_DEBUG(llvm::dbgs() << "Converting layout op: " << op << "\n");
   IRRewriter rewriter(op.getContext());
   RankedTensorType tensorTy = op.getInput().getType();
+  int64_t numCiphertexts = tensorTy.getDimSize(0);
 
-  // Only support a 1-D tensor until sharding is supported
-  if (op.getInput().getType().getRank() != 1) {
-    return op.emitError("requires a one-dimensional tensor");
+  // Populate the mapping with (source, target) pairs
+  // This require enumerating over the relation for the op
+  auto mappingAttr = dyn_cast<NewLayoutAttr>(op.getPermutation());
+  if (!mappingAttr) {
+    return failure();
+  }
+  Mapping mapping;
+  PointPairCollector collector(2, 2);
+  enumeratePoints(mappingAttr.getIntgerRelation(), collector);
+
+  // Put the data from collector into Mapping. Probably can be more efficient
+  // here by avoiding a copy and making a custom PointPairCollector that
+  // directly adds to mapping.
+  for (const auto& [source, target] : collector.points) {
+    CtSlot sourceSlot{source[0], source[1]};
+    CtSlot targetSlot{target[0], target[1]};
+    mapping.add(sourceSlot, targetSlot);
   }
 
-  SmallVector<int64_t> permutation;
+  ShiftScheme scheme = shiftNetworks.findShiftScheme(mapping);
+  auto rotationGroups = scheme.rotationGroups;
 
-  // Convert the affine map to an explicit permutation, or else use the dense
-  // array attr as an explicit permutation.
-  auto affineMapAttr = dyn_cast<AffineMapAttr>(op.getPermutation());
-  if (affineMapAttr) {
-    AffineMap permutationMap = simplifyAffineMap(affineMapAttr.getValue());
-    LLVM_DEBUG(llvm::dbgs()
-               << "Expanding permutation from " << permutationMap << "\n");
-    if (failed(makeExplicit1DMapping(permutationMap, tensorTy.getNumElements(),
-                                     permutation)))
-      return failure();
-  } else {
-    auto denseElementsAttr =
-        dyn_cast<DenseIntElementsAttr>(op.getPermutation());
-    if (denseElementsAttr) {
-      permutation = llvm::map_to_vector(
-          denseElementsAttr, [](const APInt& i) { return i.getSExtValue(); });
-    } else {
-      return failure();
-    }
-  }
+  SmallVector<Value> reconstructedTensorResults;
 
-  if (!isPermutation(permutation)) {
-    auto diag = op.emitError(
-        "expected a permutation, but got a mapping that was not a "
-        "permutation.");
-    Diagnostic& note = diag.attachNote() << "mapping was:\n";
-    printPermutation(permutation, note);
-    return diag;
-  }
-
-  LLVM_DEBUG({
-    llvm::dbgs() << "PermuteOp produces underlying permutation: ";
-    printPermutation(permutation, llvm::dbgs());
-  });
-
-  FrozenVector<int64_t> permKey = FrozenVector<int64_t>(std::move(permutation));
-  ArrayRef<RotationGroup> rotationGroup =
-      shiftNetworks.computeShiftNetwork(permKey);
-  assert(!rotationGroup.empty() &&
+  assert(!rotationGroups.empty() &&
          "Shift network must have at least one group");
 
-  // Process each rotation group separately with a full set of power-of-two
-  // shifts. Then sum the results together.
   rewriter.setInsertionPointAfter(op);
+
+  // Decompose the tensor of ciphertexts into individual values
+  SmallVector<Value> ciphertexts;
+  for (int64_t i = 0; i < numCiphertexts; i++)
+    ciphertexts.push_back(
+        rewriter.create<tensor::ExtractOp>(op.getLoc(), op.getInput(), i));
+
+  // Create arith.constant zero initializers for the results
+  SmallVector<Value> resultCiphertexts;
+  for (int64_t i = 0; i < numCiphertexts; i++)
+    resultCiphertexts.push_back(rewriter.create<arith::ConstantOp>(
+        op.getLoc(), rewriter.getZeroAttr(tensorTy.getElementType())));
+
   std::optional<Value> result = std::nullopt;
   [[maybe_unused]] int groupIndex = 0;
-  for (const RotationGroup& group : rotationGroup) {
+  for (const RotationGroup& group : rotationGroups) {
     LLVM_DEBUG(llvm::dbgs()
                << "Implementing rotations for group " << groupIndex++ << "\n");
-    Value perGroupResult =
-        rotateGroup(op.getInput(), group, ciphertextSize, permKey, rewriter);
-    if (result.has_value())
-      result =
-          arith::AddIOp::create(rewriter, op.getLoc(), *result, perGroupResult);
-    else
-      result = perGroupResult;
+
+    // Re-compute the subset of SourceShifts needed for this group
+    SmallVector<SourceShift> sourceShifts;
+    for (const MappingEntry& entry : mapping) {
+      if (group.contains(entry.source)) {
+        int64_t shift =
+            scheme.strategy.getVirtualShift(entry.source, entry.target);
+        sourceShifts.push_back({entry.source, shift});
+      }
+    }
+
+    SmallVector<Value> perGroupResult =
+        rotateOneGroup(ciphertexts, sourceShifts, scheme.strategy.getRounds(),
+                       group, rewriter);
+
+    reconstructedTensorResults.push_back(tensor::FromElementsOp::create(
+        rewriter, tensorTy, perGroupResult, op.getLoc()));
   }
+
+  //   # add all the results together
+  //   final_result = [Ciphertext([0] * len(x)) for x in input]
+  //   for result in group_results:
+  //       for i, ct in enumerate(result):
+  //           if ct:
+  //               final_result[i] += ct
 
   rewriter.replaceOp(op, result.value());
   return success();

@@ -99,6 +99,7 @@ cc_library(
         "@heir//lib/Utils:AffineMapUtils",
         "@heir//lib/Utils/ADT:FrozenVector",
         "@heir//lib/Utils/Graph",
+        "@heir//lib/Utils/Layout:Utils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",

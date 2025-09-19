@@ -1,9 +1,16 @@
 #ifndef LIB_DIALECT_TENSOREXT_TRANSFORMS_IMPLEMENTSHIFTNETWORK_H_
 #define LIB_DIALECT_TENSOREXT_TRANSFORMS_IMPLEMENTSHIFTNETWORK_H_
 
+/// An implementation of the graph coloring approach of Vos-Vos-Erkin 2022 from
+/// http://dx.doi.org/10.1007/978-3-031-17140-6_20
+///
+/// This implements a version of the algorithm that supports arbitrary mappings
+/// across multi-ciphertexts, including replication.
+
 #include "lib/Utils/ADT/FrozenVector.h"
 #include "lib/Utils/AffineMapUtils.h"
 #include "lib/Utils/Graph/Graph.h"
+#include "lib/Utils/MathUtils.h"
 #include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
 #include "mlir/include/mlir/Pass/Pass.h"      // from @llvm-project
 
@@ -14,51 +21,120 @@ namespace tensor_ext {
 #define GEN_PASS_DECL_IMPLEMENTSHIFTNETWORK
 #include "lib/Dialect/TensorExt/Transforms/Passes.h.inc"
 
-// A permutation of 0..n-1. This vector should always have size n and contain
-// each integer from 0 to n-1 exactly once.
-using Permutation = FrozenVector<int64_t>;
+// A (ciphertext, slot) pair representing a specific slot in a specific
+// ciphertext.
+struct CtSlot {
+  int64_t ct;
+  int64_t slot;
 
-// A group of indices to rotate together
-using RotationGroup = DenseSet<int64_t>;
+  bool operator==(const CtSlot& other) const {
+    return ct == other.ct && slot == other.slot;
+  }
 
-// The ShiftStrategy class applies power-of-two shifts to each set bit in
-// LSB-to-MSB order, 1, 2, 4, 8, .... Each shift amount is considered a "round"
-// in which a group of indices are attempted to be shifted together. This can be
-// used both to identify conflicts for the graph coloring technique of
+  bool operator!=(const CtSlot& other) const { return !(*this == other); }
+};
+
+struct MappingEntry {
+  CtSlot source;
+  CtSlot target;
+};
+
+// An arbitrary mapping on the slots of a set of ciphertexts.
+class Mapping {
+ public:
+  Mapping() = default;
+
+  size_t size() const { return entries.size(); }
+
+  void add(CtSlot source, CtSlot target) {
+    entries.emplace_back(MappingEntry{source, target});
+  }
+
+  auto begin() const { return entries.begin(); }
+  auto end() const { return entries.end(); }
+
+ private:
+  SmallVector<MappingEntry> entries;
+};
+
+// A group of source CtSlots to rotate together
+using RotationGroup = DenseSet<CtSlot>;
+
+// A set of ciphertexts is represented as a single large virtual ciphertext
+// (flattened row-major), and so a given (ct, slot) pair is "shifted" by an
+// amount that may exceed the size of a single ciphertext. The algorithm keeps
+// track of the bookkeeping needed to identify the actual target ciphertext
+// when materializing a RotationGroup to actual rotations.
+struct SourceShift {
+  CtSlot source;
+  int64_t shift;  // Virtual left shift amount
+};
+
+// The ShiftStrategy class applies power-of-two shifts to each set bit in some
+// order (default is LSB-to-MSB order, 1, 2, 4, 8, ...). Each shift amount is
+// considered a "round" in which a group of indices are shifted together. This
+// can be used both to identify conflicts for the graph coloring technique of
 // Vos-Vos-Erkin, and also to construct the concrete shift network after a
 // partition has been decided by Vos-Vos-Erkin.
 struct ShiftRound {
-  // Maps the index of the original input to its current position in the
+  // Maps the the original mapping source to its current position in the
   // tensor. This may contain multiple indices mapping to the same slot due to
   // conflicts in the shifting strategy.
-  SmallVector<int64_t> positions;
-  // The set of indices that are rotated left in this round. This can be used
-  // to generate a mask to select the indices that need rotating.
-  SmallVector<int64_t> rotatedIndices;
-  // The amount rotated left;
+  DenseMap<SourceShift, CtSlot> positions;
+  // The (virtual) amount rotated left
   int64_t rotationAmount;
 };
 
+/// Return the default shift order: LSB to MSB, i.e. 1, 2, 4, 8, ...
+SmallVector<int64_t> defaultShiftOrder(int64_t n);
+
 class ShiftStrategy {
  public:
-  ShiftStrategy() = default;
+  ShiftStrategy(int64_t ciphertextSize, int64_t numCiphertexts = 1,
+                const SmallVector<int64_t>& shiftOrder = {})
+      : ciphertextSize(ciphertextSize),
+        numCiphertexts(numCiphertexts),
+        virtualCiphertextSize(numCiphertexts * ciphertextSize),
+        shiftOrder(shiftOrder.empty() ? defaultShiftOrder(ciphertextSize)
+                                      : shiftOrder) {
+    assert(isPowerOfTwo(ciphertextSize) &&
+           "ciphertext size must be a power of two");
+  }
 
-  SmallVector<ShiftRound> getRounds() const;
+  // Return the
+  int64_t getVirtualShift(const CtSlot& source, const CtSlot& target) const;
 
-  // Run the shifting strategy and populate the `rounds` member variable.
-  void evaluate(const Permutation& permutation, const RotationGroup& group);
+  SmallVector<ShiftRound> getRounds() const { return rounds; }
+
+  // Run the shifting strategy and populate the list of rounds in the strategy
+  void evaluate(const Mapping& mapping) const;
 
  private:
+  int64_t ciphertextSize;
+  int64_t numCiphertexts;
+  int64_t virtualCiphertextSize;
+  SmallVector<int64_t> shiftOrder;
   SmallVector<ShiftRound> rounds;
 };
 
-// Cf. https://www.jeremykun.com/2024/09/02/shift-networks/
-// and https://link.springer.com/chapter/10.1007/978-3-031-17140-6_20
+struct ShiftScheme {
+  SmallVector<RotationGroup> rotationGroups;
+  ShiftStrategy strategy;
+};
+
+// Cf. https://link.springer.com/chapter/10.1007/978-3-031-17140-6_20
 // for an explanation of the algorithm.
 class VosVosErkinShiftNetworks {
  public:
-  VosVosErkinShiftNetworks(int64_t ciphertextSize)
-      : ciphertextSize(ciphertextSize) {}
+  VosVosErkinShiftNetworks(int64_t ciphertextSize, int64_t numCiphertexts = 1,
+                           const SmallVector<int64_t>& shiftOrder = {})
+      : ciphertextSize(ciphertextSize),
+        numCiphertexts(numCiphertexts),
+        shiftOrder(shiftOrder.empty() ? defaultShiftOrder(ciphertextSize)
+                                      : shiftOrder) {
+    assert(isPowerOfTwo(ciphertextSize) &&
+           "ciphertext size must be a power of two");
+  }
 
   // Computes a partition of the slot indices of a ciphertext into
   // RotationGroups that are compatible with respect to the target permutation.
@@ -68,13 +144,15 @@ class VosVosErkinShiftNetworks {
   // The returned ArrayRef is owned by this VosVosErkinShiftNetworks instance.
   // The resulting set of rotation groups are is cached, and the cache is used
   // on further calls to avoid recomputing the shift network.
-  ArrayRef<RotationGroup> computeShiftNetwork(const Permutation& permutation);
+  ShiftScheme findShiftScheme(const Mapping& mapping);
 
-  int64_t getCiphertextSize() const;
+  int64_t getCiphertextSize() const { return ciphertextSize; }
 
  private:
   int64_t ciphertextSize;
-  DenseMap<Permutation, llvm::SmallVector<RotationGroup>> rotationGroups;
+  int64_t numCiphertexts;
+  SmallVector<int64_t> shiftOrder;
+  DenseMap<Mapping, ShiftScheme> schemeCache;
 };
 
 }  // namespace tensor_ext
