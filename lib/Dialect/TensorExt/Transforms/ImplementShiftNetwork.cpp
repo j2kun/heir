@@ -98,12 +98,22 @@ void ShiftStrategy::evaluate(const Mapping& mapping) {
       CtSlot nextPosition = currentPos;
       if (rotationAmount & key.shift) {
         currentVirtualSlot =
-            (currentVirtualSlot + rotationAmount) % virtualCiphertextSize;
+            (currentVirtualSlot - rotationAmount + virtualCiphertextSize) %
+            virtualCiphertextSize;
         nextPosition = CtSlot{currentVirtualSlot / ciphertextSize,
                               currentVirtualSlot % ciphertextSize};
       }
       currentRoundPosns[key] = nextPosition;
     }
+
+    LLVM_DEBUG({
+      llvm::dbgs() << "After rotation " << rotationAmount << ":\n";
+      for (const auto& [ss, pos] : currentRoundPosns) {
+        llvm::dbgs() << "  (" << ss.source.ct << "," << ss.source.slot << ")["
+                     << ss.shift << "] -> (" << pos.ct << "," << pos.slot << ")"
+                     << "\n";
+      }
+    });
 
     rounds.push_back({currentRoundPosns, rotationAmount});
   }

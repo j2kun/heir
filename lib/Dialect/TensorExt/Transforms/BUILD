@@ -1,5 +1,6 @@
 load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -145,6 +146,15 @@ cc_library(
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
+    ],
+)
+
+cc_test(
+    name = "ImplementShiftNetworkTest",
+    srcs = ["ImplementShiftNetworkTest.cpp"],
+    deps = [
+        ":ImplementShiftNetwork",
+        "@googletest//:gtest_main",
     ],
 )
 
