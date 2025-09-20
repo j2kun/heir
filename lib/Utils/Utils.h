@@ -143,6 +143,22 @@ Operation* makeAppropriatelyTypedAddOp(OpBuilder& builder, Location loc,
 Operation* makeAppropriatelyTypedMulOp(OpBuilder& builder, Location loc,
                                        Value lhs, Value rhs);
 
+// Return two booleans indicating whether all elements in the mask are zero
+// or one, respectively.
+inline std::pair<bool, bool> allZeroAllOne(ArrayRef<int64_t> mask) {
+  bool allZero = true;
+  bool allOne = true;
+  for (int64_t v : mask) {
+    if (v != 0) {
+      allZero = false;
+    }
+    if (v != 1) {
+      allOne = false;
+    }
+  }
+  return {allZero, allOne};
+}
+
 }  // namespace heir
 }  // namespace mlir
 

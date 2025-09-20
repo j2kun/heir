@@ -9,12 +9,8 @@
 
 #include <utility>
 
-#include "lib/Utils/ADT/FrozenVector.h"
-#include "lib/Utils/AffineMapUtils.h"
-#include "lib/Utils/Graph/Graph.h"
 #include "lib/Utils/MathUtils.h"
-#include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
-#include "mlir/include/mlir/Pass/Pass.h"      // from @llvm-project
+#include "mlir/include/mlir/Pass/Pass.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {

@@ -6,6 +6,10 @@
 #include <utility>
 
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Dialect/TensorExt/Transforms/RotationGroupKernel.h"
+#include "lib/Kernel/AbstractValue.h"
+#include "lib/Kernel/ArithmeticDag.h"
+#include "lib/Kernel/IRMaterializingVisitor.h"
 #include "lib/Utils/Graph/Graph.h"
 #include "lib/Utils/Layout/Utils.h"
 #include "lib/Utils/MathUtils.h"
@@ -216,20 +220,6 @@ Value createMask(RankedTensorType tensorTy, const SmallVector<int64_t>& indices,
   return constant.getResult();
 }
 
-std::pair<bool, bool> allZeroAllOne(const SmallVector<int64_t>& mask) {
-  bool allZero = true;
-  bool allOne = true;
-  for (int64_t v : mask) {
-    if (v != 0) {
-      allZero = false;
-    }
-    if (v != 1) {
-      allOne = false;
-    }
-  }
-  return {allZero, allOne};
-}
-
 //  Apply a virtual rotation to a real list of ciphertexts.
 //
 //  A virtual ciphertext is a flattening of a list of ciphertexts. When this
@@ -351,18 +341,7 @@ SmallVector<std::optional<Value>> applyVirtualRotation(
       }
     }
 
-    // # Apply the split masks to the input and rotate
-    // if all(x == 0 for x in mask1):
-    //     rotated1 = None
-    // else:
-    //     masked1 = input[i] * mask1
-    //     rotated1 = masked1.rotate(rotation % ciphertext_size)
-    // if all(x == 0 for x in mask2):
-    //     rotated2 = None
-    // else:
-    //     masked2 = input[i] * mask2
-    //     rotated2 = masked2.rotate(rotation % ciphertext_size)
-
+    // Apply the split masks to the input and rotate
     std::optional<Value> rotated1;
     {
       auto [allZero, _] = allZeroAllOne(mask1);
@@ -421,117 +400,6 @@ SmallVector<std::optional<Value>> applyVirtualRotation(
   return results;
 }
 
-SmallVector<Value> rotateOneGroup(ArrayRef<Value> initialCiphertexts,
-                                  ArrayRef<SourceShift> sourceShifts,
-                                  ArrayRef<ShiftRound> rounds,
-                                  const RotationGroup& group,
-                                  ImplicitLocOpBuilder& b) {
-  RankedTensorType ctType =
-      cast<RankedTensorType>(initialCiphertexts[0].getType());
-  int64_t numCiphertexts = initialCiphertexts.size();
-  int64_t ciphertextSize = ctType.getDimSize(0);
-  SmallVector<Value> current(initialCiphertexts);
-  DenseSet<int64_t> touchedCiphertexts;
-
-  for (const auto& [roundNum, round] : llvm::enumerate(rounds)) {
-    if (roundNum == 0) continue;
-    LLVM_DEBUG(llvm::dbgs()
-               << "Processing round " << roundNum << " with rotation "
-               << round.rotationAmount << "\n");
-
-    // Need two masks, one to select the sources in this group that need to
-    // be rotated, and one to preserve the values at fixed positions.
-    SmallVector<CtSlot> rotatePositions;
-    SmallVector<CtSlot> fixedPositions;
-    for (const SourceShift& ss : sourceShifts) {
-      if (!group.contains(ss.source)) continue;
-      CtSlot currentPos = rounds[roundNum - 1].positions.at(ss);
-      if (ss.shift & round.rotationAmount) {
-        rotatePositions.push_back(currentPos);
-      } else {
-        fixedPositions.push_back(currentPos);
-      }
-    }
-
-    SmallVector<SmallVector<int64_t>> fixedMasks(
-        numCiphertexts, SmallVector<int64_t>(ciphertextSize, 0));
-    for (CtSlot ctSlot : fixedPositions) {
-      fixedMasks[ctSlot.ct][ctSlot.slot] = 1;
-    }
-
-    // skip masking if possible
-    SmallVector<std::optional<Value>> fixedCurrent;
-    fixedCurrent.reserve(numCiphertexts);
-    for (const auto& [ct, fixedMask] : llvm::zip(current, fixedMasks)) {
-      auto [allZero, allOne] = allZeroAllOne(fixedMask);
-      if (allZero) {
-        fixedCurrent.push_back(std::nullopt);
-      } else if (allOne) {
-        fixedCurrent.push_back(ct);
-      } else {
-        fixedCurrent.push_back(
-            makeAppropriatelyTypedMulOp(b, b.getLoc(), ct,
-                                        createMask(ctType, fixedMask, b))
-                ->getResult(0));
-      }
-    }
-
-    //   rotated_current = [None] * num_ciphertexts
-    //   if rotate_positions:
-    //       rotate_masks = [[0] * ciphertext_size for _ in
-    //       range(num_ciphertexts)] for ct, slot in rotate_positions:
-    //           rotate_masks[ct][slot] = 1
-    //       rotated_current = apply_virtual_rotation(
-    //           current, round.rotation_amount, rotate_masks
-    //       )
-
-    SmallVector<std::optional<Value>> rotatedCurrent(numCiphertexts);
-    rotatedCurrent.reserve(numCiphertexts);
-    if (!rotatePositions.empty()) {
-      SmallVector<SmallVector<int64_t>> rotateMasks(
-          numCiphertexts, SmallVector<int64_t>(ciphertextSize, 0));
-      for (CtSlot ctSlot : rotatePositions) {
-        rotateMasks[ctSlot.ct][ctSlot.slot] = 1;
-      }
-      rotatedCurrent =
-          applyVirtualRotation(current, round.rotationAmount, rotateMasks, b);
-    }
-
-    // Combine the rotated and fixed parts to form the new current. However,
-    // note that a round may involve a subset of sources which are just
-    // fixed (no rotations). In this case, there may be some ciphertexts
-    // which have no fixed or rotated entries. We call these "untouched",
-    // and we need to ensure that the final summation zeroes them out.
-    for (int64_t i = 0; i < numCiphertexts; i++) {
-      std::optional<Value> fixed = fixedCurrent[i];
-      std::optional<Value> rotated = rotatedCurrent[i];
-      if (!fixed.has_value() && !rotated.has_value()) continue;
-
-      touchedCiphertexts.insert(i);
-      if (!fixed.has_value()) {
-        current[i] = *rotated;
-      } else if (!rotated.has_value()) {
-        current[i] = *fixed;
-      } else {
-        current[i] =
-            makeAppropriatelyTypedAddOp(b, b.getLoc(), *fixed, *rotated)
-                ->getResult(0);
-      }
-    }
-  }
-
-  // Add up the results, skipping "untouched" ciphertexts which are copies
-  // of the input.
-  for (int64_t i = 0; i < numCiphertexts; i++) {
-    if (!touchedCiphertexts.contains(i)) {
-      current[i] = b.create<arith::ConstantOp>(
-          b.getLoc(), b.getZeroAttr(ctType.getElementType()));
-    }
-  }
-
-  return current;
-}
-
 LogicalResult convertPermuteOp(PermuteOp op,
                                VosVosErkinShiftNetworks& shiftNetworks,
                                int64_t ciphertextSize) {
@@ -567,10 +435,12 @@ LogicalResult convertPermuteOp(PermuteOp op,
 
   b.setInsertionPointAfter(op);
 
-  // Decompose the tensor of ciphertexts into individual values
-  // This is done by extracting the slice of a tensor<kxN> corresponding to
-  // one row.
-  SmallVector<Value> ciphertexts;
+  // Decompose the tensor of ciphertexts into individual values. This is done
+  // by extracting the slice of a tensor<kxN> corresponding to one row.
+  //
+  // Also needed to be compatible with the ArithmeticDag interface and to
+  // avoid extract slice ops in the middle of the dag.
+  SmallVector<kernel::SSAValue> ciphertexts;
   for (int64_t i = 0; i < numCiphertexts; i++) {
     auto one = b.getIndexAttr(1);
     SmallVector<OpFoldResult> offsets = {b.getIndexAttr(i), b.getIndexAttr(0)};
@@ -582,7 +452,7 @@ LogicalResult convertPermuteOp(PermuteOp op,
         RankedTensorType::get({tensorTy.getDimSize(1)},
                               tensorTy.getElementType()),
         op.getInput(), offsets, sizes, strides);
-    ciphertexts.push_back(slice.getResult());
+    ciphertexts.push_back(kernel::SSAValue(slice.getResult()));
   }
 
   // Create arith.constant zero initializers for the results
@@ -591,42 +461,17 @@ LogicalResult convertPermuteOp(PermuteOp op,
     resultCiphertexts.push_back(b.create<arith::ConstantOp>(
         op.getLoc(), b.getZeroAttr(tensorTy.getElementType())));
 
-  SmallVector<Value> reconstructedTensorResults;
-  [[maybe_unused]] int groupIndex = 0;
-  for (const RotationGroup& group : rotationGroups) {
-    LLVM_DEBUG(llvm::dbgs()
-               << "Implementing rotations for group " << groupIndex++ << "\n");
+  SmallVector<std::shared_ptr<kernel::ArithmeticDagNode<kernel::SSAValue>>>
+      resultNodes = implementShiftNetwork(ciphertexts, mapping, scheme);
 
-    // Re-compute the subset of SourceShifts needed for this group
-    SmallVector<SourceShift> sourceShifts;
-    for (const MappingEntry& entry : mapping) {
-      if (group.contains(entry.source)) {
-        int64_t shift =
-            scheme.strategy.getVirtualShift(entry.source, entry.target);
-        sourceShifts.push_back({entry.source, shift});
-      }
-    }
+  // FIXME: add this multi-visitor
+  IRMaterializingMultiVisitor visitor(b, op.getValue().getType());
+  SmallVector<Value> result = visitor.visit(resultNodes);
 
-    SmallVector<Value> perGroupResult = rotateOneGroup(
-        ciphertexts, sourceShifts, scheme.strategy.getRounds(), group, b);
+  auto combinedResult =
+      tensor::FromElementsOp::create(b, op.getLoc(), tensorTy, result);
 
-    reconstructedTensorResults.push_back(tensor::FromElementsOp::create(
-        b, op.getLoc(), tensorTy, perGroupResult));
-  }
-
-  // Add all the per-group results together
-  StringRef addOpName =
-      isa<IntegerType>(tensorTy.getElementType()) ? "arith.addi" : "arith.addf";
-  Value finalResult = reconstructedTensorResults[0];
-  for (Value groupResult :
-       ArrayRef<Value>(reconstructedTensorResults).drop_front()) {
-    finalResult =
-        b.create(OperationState(op.getLoc(), addOpName,
-                                {finalResult, groupResult}, {tensorTy}))
-            ->getResult(0);
-  }
-
-  op.replaceAllUsesWith(finalResult);
+  op.replaceAllUsesWith(combinedResult);
   op.erase();
   return success();
 }

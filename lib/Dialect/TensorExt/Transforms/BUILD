@@ -135,6 +135,7 @@ cc_library(
         "ImplementRotateAndReduce.h",
     ],
     deps = [
+        ":RotationGroupKernel",
         ":pass_inc_gen",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Kernel:ArithmeticDag",
@@ -149,11 +150,24 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "RotationGroupKernel",
+    hdrs = ["RotationGroupKernel.h"],
+    deps = [
+        "@heir//lib/Kernel:AbstractValue",
+        "@heir//lib/Kernel:ArithmeticDag",
+        "@heir//lib/Utils",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
 cc_test(
     name = "ImplementShiftNetworkTest",
     srcs = ["ImplementShiftNetworkTest.cpp"],
     deps = [
         ":ImplementShiftNetwork",
+        ":RotationGroupKernel",
         "@googletest//:gtest_main",
     ],
 )
