@@ -96,6 +96,7 @@ cc_library(
     deps = [
         ":pass_inc_gen",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Utils",
         "@heir//lib/Utils:AffineMapUtils",
         "@heir//lib/Utils/ADT:FrozenVector",
         "@heir//lib/Utils/Graph",
@@ -105,6 +106,7 @@ cc_library(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
     ],
 )
 

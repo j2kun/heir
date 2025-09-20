@@ -138,6 +138,11 @@ TypedAttr getScalarOrDenseAttr(Type tensorOrScalarType, APInt value);
 // Get a scalar or dense attribute given the type and value.
 TypedAttr getScalarOrDenseAttr(Type tensorOrScalarType, APFloat value);
 
+Operation* makeAppropriatelyTypedAddOp(OpBuilder& builder, Location loc,
+                                       Value lhs, Value rhs);
+Operation* makeAppropriatelyTypedMulOp(OpBuilder& builder, Location loc,
+                                       Value lhs, Value rhs);
+
 }  // namespace heir
 }  // namespace mlir
 

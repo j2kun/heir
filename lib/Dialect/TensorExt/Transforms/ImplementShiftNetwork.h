@@ -7,6 +7,8 @@
 /// This implements a version of the algorithm that supports arbitrary mappings
 /// across multi-ciphertexts, including replication.
 
+#include <utility>
+
 #include "lib/Utils/ADT/FrozenVector.h"
 #include "lib/Utils/AffineMapUtils.h"
 #include "lib/Utils/Graph/Graph.h"
@@ -27,12 +29,27 @@ struct CtSlot {
   int64_t ct;
   int64_t slot;
 
+  CtSlot(int64_t ct, int64_t slot) : ct(ct), slot(slot) {}
+  CtSlot() : ct(0), slot(0) {}
+
   bool operator==(const CtSlot& other) const {
     return ct == other.ct && slot == other.slot;
   }
 
   bool operator!=(const CtSlot& other) const { return !(*this == other); }
+
+  bool operator<(const CtSlot& other) const {
+    return ct < other.ct || (ct == other.ct && slot < other.slot);
+  }
+
+  bool operator>(const CtSlot& other) const {
+    return ct > other.ct || (ct == other.ct && slot > other.slot);
+  }
 };
+
+inline ::llvm::hash_code hash_value(const CtSlot& obj) {
+  return llvm::hash_combine(obj.ct, obj.slot);
+}
 
 struct MappingEntry {
   CtSlot source;
@@ -68,6 +85,12 @@ using RotationGroup = DenseSet<CtSlot>;
 struct SourceShift {
   CtSlot source;
   int64_t shift;  // Virtual left shift amount
+
+  bool operator==(const SourceShift& other) const {
+    return source == other.source && shift == other.shift;
+  }
+
+  bool operator!=(const SourceShift& other) const { return !(*this == other); }
 };
 
 // The ShiftStrategy class applies power-of-two shifts to each set bit in some
@@ -93,7 +116,6 @@ class ShiftStrategy {
   ShiftStrategy(int64_t ciphertextSize, int64_t numCiphertexts = 1,
                 const SmallVector<int64_t>& shiftOrder = {})
       : ciphertextSize(ciphertextSize),
-        numCiphertexts(numCiphertexts),
         virtualCiphertextSize(numCiphertexts * ciphertextSize),
         shiftOrder(shiftOrder.empty() ? defaultShiftOrder(ciphertextSize)
                                       : shiftOrder) {
@@ -107,11 +129,10 @@ class ShiftStrategy {
   SmallVector<ShiftRound> getRounds() const { return rounds; }
 
   // Run the shifting strategy and populate the list of rounds in the strategy
-  void evaluate(const Mapping& mapping) const;
+  void evaluate(const Mapping& mapping);
 
  private:
   int64_t ciphertextSize;
-  int64_t numCiphertexts;
   int64_t virtualCiphertextSize;
   SmallVector<int64_t> shiftOrder;
   SmallVector<ShiftRound> rounds;
@@ -120,6 +141,11 @@ class ShiftStrategy {
 struct ShiftScheme {
   SmallVector<RotationGroup> rotationGroups;
   ShiftStrategy strategy;
+
+  ShiftScheme() : strategy(1, 1) {}
+  ShiftScheme(SmallVector<RotationGroup> rotationGroups, ShiftStrategy strategy)
+      : rotationGroups(std::move(rotationGroups)),
+        strategy(std::move(strategy)) {}
 };
 
 // Cf. https://link.springer.com/chapter/10.1007/978-3-031-17140-6_20
@@ -158,5 +184,85 @@ class VosVosErkinShiftNetworks {
 }  // namespace tensor_ext
 }  // namespace heir
 }  // namespace mlir
+
+// SourceShift, Mapping, and CtSlot needs DenseMapInfo for use in DenseMap
+namespace llvm {
+template <>
+struct DenseMapInfo<mlir::heir::tensor_ext::CtSlot> {
+  static mlir::heir::tensor_ext::CtSlot getEmptyKey() {
+    return mlir::heir::tensor_ext::CtSlot{-1, -1};
+  }
+  static mlir::heir::tensor_ext::CtSlot getTombstoneKey() {
+    return mlir::heir::tensor_ext::CtSlot{-1, -2};
+  }
+  static unsigned getHashValue(const mlir::heir::tensor_ext::CtSlot& Val) {
+    return hash_combine(Val.ct, Val.slot);
+  }
+  static bool isEqual(const mlir::heir::tensor_ext::CtSlot& L,
+                      const mlir::heir::tensor_ext::CtSlot& R) {
+    return L == R;
+  }
+};
+
+template <>
+struct DenseMapInfo<mlir::heir::tensor_ext::SourceShift> {
+  static mlir::heir::tensor_ext::SourceShift getEmptyKey() {
+    return mlir::heir::tensor_ext::SourceShift{
+        mlir::heir::tensor_ext::CtSlot{-1, -1}, -1};
+  }
+  static mlir::heir::tensor_ext::SourceShift getTombstoneKey() {
+    return mlir::heir::tensor_ext::SourceShift{
+        mlir::heir::tensor_ext::CtSlot{-1, -2}, -1};
+  }
+  static unsigned getHashValue(const mlir::heir::tensor_ext::SourceShift& Val) {
+    return hash_combine(Val.source.ct, Val.source.slot, Val.shift);
+  }
+  static bool isEqual(const mlir::heir::tensor_ext::SourceShift& L,
+                      const mlir::heir::tensor_ext::SourceShift& R) {
+    return L == R;
+  }
+};
+
+template <>
+struct DenseMapInfo<mlir::heir::tensor_ext::Mapping> {
+  static mlir::heir::tensor_ext::Mapping getEmptyKey() {
+    return mlir::heir::tensor_ext::Mapping();
+  }
+  static mlir::heir::tensor_ext::Mapping getTombstoneKey() {
+    return mlir::heir::tensor_ext::Mapping();
+  }
+  static unsigned getHashValue(const mlir::heir::tensor_ext::Mapping& Val) {
+    size_t hash = 0;
+    for (const auto& entry : Val) {
+      hash ^= hash_combine(entry.source, entry.target);
+    }
+    return hash;
+  }
+  static bool isEqual(const mlir::heir::tensor_ext::Mapping& L,
+                      const mlir::heir::tensor_ext::Mapping& R) {
+    if (L.size() != R.size()) {
+      return false;
+    }
+    const auto* itL = L.begin();
+    const auto* itR = R.begin();
+    for (; itL != L.end() && itR != R.end(); ++itL, ++itR) {
+      if (itL->source != itR->source || itL->target != itR->target) {
+        return false;
+      }
+    }
+    return true;
+  }
+};
+}  // namespace llvm
+
+namespace std {
+template <>
+struct hash<::mlir::heir::tensor_ext::CtSlot> {
+  size_t operator()(const ::mlir::heir::tensor_ext::CtSlot& obj) const {
+    return hash<int64_t>()(obj.ct) ^ (hash<int64_t>()(obj.slot) << 1);
+  }
+};
+
+}  // namespace std
 
 #endif  // LIB_DIALECT_TENSOREXT_TRANSFORMS_IMPLEMENTSHIFTNETWORK_H_
