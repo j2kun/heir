@@ -17,7 +17,8 @@ SmallVector<int64_t> defaultShiftOrder(int64_t n) {
   SmallVector<int64_t> result;
   int64_t maxLog2 = APInt(64, n).getActiveBits();
   if (isPowerOfTwo(n)) maxLog2 -= 1;
-  for (int64_t i = 0; i < maxLog2; i++) result.push_back(1 << i);
+  // TODO: Don't hardcode right shifts here.
+  for (int64_t i = 0; i < maxLog2; i++) result.push_back(-(1 << i));
   return result;
 }
 
@@ -28,7 +29,7 @@ SmallVector<int64_t> defaultShiftOrder(int64_t n) {
 inline int64_t normalizeShift(int64_t input, int64_t output,
                               int64_t tensorSize) {
   int64_t shift = (output - input) % tensorSize;
-  shift = -shift;  // Account for leftward rotations
+  // shift = -shift;  // Account for leftward rotations
   if (shift < 0) {
     shift += tensorSize;
   }
@@ -73,8 +74,9 @@ void ShiftStrategy::evaluate(const Mapping& mapping) {
       int64_t currentVirtualSlot =
           currentPos.ct * ciphertextSize + currentPos.slot;
 
+      int64_t shift = key.shift;
       CtSlot nextPosition = currentPos;
-      if (rotationAmount & key.shift) {
+      if (std::abs(rotationAmount) & std::abs(shift)) {
         currentVirtualSlot =
             (currentVirtualSlot - rotationAmount + virtualCiphertextSize) %
             virtualCiphertextSize;

@@ -111,7 +111,7 @@ applyVirtualRotation(ArrayRef<std::shared_ptr<ArithmeticDagNode<T>>> input,
 
   int64_t minSlot = 0;
   int64_t maxSlot = ciphertextSize - 1;
-  int64_t boundarySlot = rotation;
+  int64_t boundarySlot = rotation > 0 ? rotation : ciphertextSize + rotation;
 
   for (int64_t ctIndex = 0; ctIndex < numCiphertexts; ctIndex++) {
     const ValueTy& ct = input[ctIndex];
@@ -245,7 +245,7 @@ rotateOneGroup(const Mapping& mapping, ArrayRef<T> initialCiphertexts,
     for (const SourceShift& ss : sourceShifts) {
       if (!group.contains(ss.source)) continue;
       CtSlot currentPos = rounds[roundNum - 1].positions.at(ss);
-      if (ss.shift & round.rotationAmount) {
+      if (std::abs(ss.shift) & std::abs(round.rotationAmount)) {
         rotatePositions.push_back(currentPos);
       } else {
         fixedPositions.push_back(currentPos);
