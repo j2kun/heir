@@ -8,6 +8,7 @@
 
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
+#include "lib/Utils/Overloaded.h"
 #include "llvm/include/llvm/Support/Debug.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/SparseAnalysis.h"  // from @llvm-project
@@ -61,14 +62,6 @@ struct Invalid {
   bool operator==(const Invalid&) const = default;
 };
 
-// Helper for the "overloaded" pattern
-template <class... Ts>
-struct Overloaded : Ts... {
-  using Ts::operator()...;
-};
-template <class... Ts>
-Overloaded(Ts...) -> Overloaded<Ts...>;
-
 // An element of a linear lattice, whose elements are:
 //
 // Uninint < 0 < 1 < ... all positive integers ... < MaxLevel < Invalid
@@ -92,7 +85,6 @@ class LevelState {
   bool operator==(const LevelState& other) const = default;
 
   bool isInitialized() const { return !std::holds_alternative<Uninit>(value); }
-
   bool isInt() const { return std::holds_alternative<int>(value); }
 
   bool isMaxLevel() const { return std::holds_alternative<MaxLevel>(value); }

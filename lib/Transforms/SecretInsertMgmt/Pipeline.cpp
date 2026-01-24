@@ -57,6 +57,7 @@ LogicalResult runInsertMgmtPipeline(Operation* top,
     insertBootstrapWaterLine(top, solver, options.bootstrapWaterline.value());
     rerunDataflow(solver, top);
   }
+  LLVM_DEBUG(top->dump());
 
   int idCounter = 0;  // for making adjust_scale op different to avoid cse
   handleCrossLevelOps(top, solver, &idCounter, options.includeFloats);

@@ -2,6 +2,7 @@
 #include <utility>
 
 #include "lib/Analysis/ScaleAnalysis/ScaleAnalysis.h"
+#include "lib/Analysis/ScaleAnalysis/ScaleModel.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/BGV/IR/BGVAttributes.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
@@ -23,6 +24,10 @@
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 #include "mlir/include/mlir/Transforms/Passes.h"           // from @llvm-project
 #include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"     // from @llvm-project
+#include "llvm/include/llvm/Support/DebugLog.h"  // from @llvm-project
+
+#define DEBUG_TYPE "populate-scale-bgv"
 
 namespace mlir {
 namespace heir {
@@ -62,19 +67,19 @@ struct PopulateScaleBGV : impl::PopulateScaleBGVBase<PopulateScaleBGV> {
         getOperation()->getAttr(bgv::BGVDialect::kSchemeParamAttrName));
     auto t = bgvSchemeParamAttr.getPlaintextModulus();
 
+    auto schemeParam = bgv::SchemeParam::getSchemeParamFromAttr(bgvSchemeParamAttr);
+    LDBG() << "bgv::SchemeParam =" << schemeParam;
+
+    BGVScaleModel model;
     DataFlowSolver solver;
     SymbolTableCollection symbolTable;
     dataflow::loadBaselineAnalyses(solver);
     // ScaleAnalysis depends on SecretnessAnalysis
     solver.load<SecretnessAnalysis>();
     // set input scale to 1, which is arbitrary.
-    solver.load<ScaleAnalysis<BGVScaleModel>>(
-        bgv::SchemeParam::getSchemeParamFromAttr(bgvSchemeParamAttr),
-        /*inputScale*/ 1);
+    solver.load<ScaleAnalysis>(model, schemeParam, /*inputScale*/ 1);
     // Back-prop ScaleAnalysis depends on (forward) ScaleAnalysis
-    solver.load<ScaleAnalysisBackward<BGVScaleModel>>(
-        symbolTable,
-        bgv::SchemeParam::getSchemeParamFromAttr(bgvSchemeParamAttr));
+    solver.load<ScaleAnalysisBackward>(symbolTable, model, schemeParam);
 
     if (failed(solver.initializeAndRun(getOperation()))) {
       getOperation()->emitOpError() << "Failed to run the analysis.\n";

@@ -21,6 +21,11 @@ cc_library(
 )
 
 cc_library(
+    name = "Overloaded",
+    hdrs = ["Overloaded.h"],
+)
+
+cc_library(
     name = "AffineMapUtils",
     srcs = ["AffineMapUtils.cpp"],
     hdrs = ["AffineMapUtils.h"],

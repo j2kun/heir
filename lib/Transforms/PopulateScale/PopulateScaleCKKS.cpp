@@ -2,6 +2,7 @@
 #include <utility>
 
 #include "lib/Analysis/ScaleAnalysis/ScaleAnalysis.h"
+#include "lib/Analysis/ScaleAnalysis/ScaleModel.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
@@ -55,7 +56,10 @@ struct PopulateScaleCKKS : impl::PopulateScaleCKKSBase<PopulateScaleCKKS> {
     auto ckksSchemeParamAttr = mlir::dyn_cast<ckks::SchemeParamAttr>(
         getOperation()->getAttr(ckks::CKKSDialect::kSchemeParamAttrName));
     auto logDefaultScale = ckksSchemeParamAttr.getLogDefaultScale();
+    auto schemeParam = ckks::SchemeParam::getSchemeParamFromAttr(ckksSchemeParamAttr);
+    LDBG() << "ckks::SchemeParam =" << schemeParam;
 
+    CKKSScaleModel model;
     DataFlowSolver solver;
     SymbolTableCollection symbolTable;
     dataflow::loadBaselineAnalyses(solver);
@@ -67,13 +71,9 @@ struct PopulateScaleCKKS : impl::PopulateScaleCKKSBase<PopulateScaleCKKS> {
       LDBG() << "Encoding at scale^2 due to 'include-first-mul' config";
       inputScale *= 2;
     }
-    solver.load<ScaleAnalysis<CKKSScaleModel>>(
-        ckks::SchemeParam::getSchemeParamFromAttr(ckksSchemeParamAttr),
-        /*inputScale*/ inputScale);
+    solver.load<ScaleAnalysis>(model, schemeParam, /*inputScale*/ inputScale);
     // Back-prop ScaleAnalysis depends on (forward) ScaleAnalysis
-    solver.load<ScaleAnalysisBackward<CKKSScaleModel>>(
-        symbolTable,
-        ckks::SchemeParam::getSchemeParamFromAttr(ckksSchemeParamAttr));
+    solver.load<ScaleAnalysisBackward>(symbolTable, model, schemeParam);
 
     if (failed(solver.initializeAndRun(getOperation()))) {
       getOperation()->emitOpError() << "Failed to run the analysis.\n";
@@ -86,7 +86,7 @@ struct PopulateScaleCKKS : impl::PopulateScaleCKKSBase<PopulateScaleCKKS> {
     // all plaintext (mgmt.init) should have ScaleLattice for its result.
     getOperation()->walk([&](mgmt::AdjustScaleOp op) {
       auto* lattice = solver.lookupState<ScaleLattice>(op.getResult());
-      if (!lattice || !lattice->getValue().isInitialized()) {
+      if (!lattice || !lattice->getValue().isInt()) {
         op.emitOpError() << "Dataflow analysis failed to populate scale "
                             "lattice for result\n";
         signalPassFailure();
@@ -95,7 +95,7 @@ struct PopulateScaleCKKS : impl::PopulateScaleCKKSBase<PopulateScaleCKKS> {
 
     getOperation()->walk([&](mgmt::InitOp op) {
       auto* lattice = solver.lookupState<ScaleLattice>(op.getResult());
-      if (!lattice || !lattice->getValue().isInitialized()) {
+      if (!lattice || !lattice->getValue().isInt()) {
         op.emitOpError() << "Dataflow analysis failed to populate scale "
                             "lattice for result\n";
         signalPassFailure();

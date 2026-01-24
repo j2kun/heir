@@ -17,6 +17,7 @@ cc_library(
         ":PopulateScalePatterns",
         ":pass_inc_gen",
         "@heir//lib/Analysis/ScaleAnalysis",
+        "@heir//lib/Analysis/ScaleAnalysis:ScaleModel",
         "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Dialect/BGV/IR:Dialect",
