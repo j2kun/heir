@@ -12,6 +12,7 @@ cc_library(
     hdrs = ["PopulatePrimitiveRoots.h"],
     deps = [
         ":pass_inc_gen",
+        "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",

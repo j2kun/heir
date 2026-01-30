@@ -92,6 +92,7 @@
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
 #include "lib/Transforms/PolynomialApproximation/PolynomialApproximation.h"
+#include "lib/Transforms/PopulatePrimitiveRoots/PopulatePrimitiveRoots.h"
 #include "lib/Transforms/PopulateScale/PopulateScale.h"
 #include "lib/Transforms/PropagateAnnotation/PropagateAnnotation.h"
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
@@ -298,6 +299,7 @@ int main(int argc, char** argv) {
   registerHaloPasses();
   registerOperationBalancerPasses();
   registerPopulateScalePasses();
+  registerPopulatePrimitiveRootsPasses();
   registerStraightLineVectorizerPasses();
   registerUnusedMemRefPasses();
   registerValidateNoisePasses();

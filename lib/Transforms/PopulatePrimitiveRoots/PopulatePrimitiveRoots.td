@@ -4,12 +4,11 @@
 include "mlir/Pass/PassBase.td"
 
 def PopulatePrimitiveRoots : Pass<"populate-primitive-roots"> {
-  // FIXME: add add summary/description
-  let summary = "";
+  let summary = "Populates primitive roots on NTT ops requiring a primitive root";
   let description = [{
   }];
   let dependentDialects = [
-
+    "::mlir::heir::PolynomialDialect",
   ];
 }
 
