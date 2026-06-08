@@ -19,6 +19,7 @@ DATA_DEPS = [
     # copybara: openfhe_pke_headers
     # copybara: python_runtime_headers
     "@rapidjson",
+    "@hermetic_llvm//libcxx:headers",
 ]
 
 # a single-source build dependency that gives the whole (non-test) source tree;

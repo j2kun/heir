@@ -1,12 +1,29 @@
 module(name = "heir")
 
 bazel_dep(name = "bazel_skylib", version = "1.9.0")
-bazel_dep(name = "rules_cc", version = "0.2.18")
+bazel_dep(name = "rules_cc", version = "0.2.19")
 
 # hermetic LLVM toolchain (for C++ compiler and linker)
-bazel_dep(name = "llvm", version = "0.7.8")
+bazel_dep(name = "llvm", version = "0.8.6")
 
-register_toolchains("@llvm//:all")
+register_toolchains("@llvm//toolchain:all")
+
+# The hermetic LLVM project comes with LLVM sources, but we need a newer MLIR
+# that what is in the LLVM source from a versioned release. Instead, we only
+# load the hermetic LLVM sources to get access to the `libopenmp`, needed for
+# OpenFHE. With the block below, openmp is available via
+#
+#    bazel query @hermetic_llvm//openmp:libomp
+#
+llvm = use_extension("@llvm//extensions:llvm.bzl", "llvm")
+llvm.configure(
+    targets = [
+        "AArch64",
+        "AMDGPU",
+        "X86",
+    ],
+)
+use_repo(llvm, hermetic_llvm = "llvm-project")
 
 # Apple compilation support.
 # Note this requires full xcode, not just commandline tools
@@ -40,14 +57,29 @@ bazel_dep(name = "rules_shell", version = "0.6.1")
 bazel_dep(name = "re2", version = "2025-08-12")
 bazel_dep(name = "isl", version = "0.27")
 bazel_dep(name = "pocketfft", version = "0.0.2")
-bazel_dep(name = "openfhe", version = "1.4.2.bcr.1")
 bazel_dep(name = "abc", version = "0.64-yosyshq.bcr.1")
 bazel_dep(name = "yosys", version = "0.57.bcr.2")
+bazel_dep(name = "openfhe", version = "1.4.2.bcr.1")
+single_version_override(
+    module_name = "openfhe",
+    patch_strip = 1,
+    patches = [
+        "//patches:openfhe_module.patch",
+        "//patches:openfhe.patch",
+    ],
+)
 
 # yosys deps needing newer versions for bazel compatibility
-bazel_dep(name = "bison", version = "3.8.2.bcr.5")
+bazel_dep(name = "fmt", version = "12.1.0")
 bazel_dep(name = "m4", version = "1.4.21.bcr.1")
 bazel_dep(name = "libffi", version = "3.4.7.bcr.4")
+bazel_dep(name = "bison", version = "3.8.2.bcr.5")
+single_version_override(
+    module_name = "bison",
+    patch_strip = 1,
+    patches = ["//patches:bison.patch"],
+    version = "3.8.2.bcr.5",
+)
 
 # Clang 21 compatibility
 # Cf. https://github.com/bazelbuild/bazel-central-registry/pull/7989
@@ -58,7 +90,7 @@ bazel_dep(name = "gawk", version = "5.3.2.bcr.7")
 bazel_dep(name = "sed", version = "4.9.bcr.5")
 
 # LLVM dependency requires us to manually pull in some transitive deps
-bazel_dep(name = "zlib-ng", version = "2.0.7", repo_name = "llvm_zlib")
+bazel_dep(name = "zlib-ng", version = "2.3.3", repo_name = "llvm_zlib")
 bazel_dep(name = "zstd", version = "1.5.7", repo_name = "llvm_zstd")
 
 llvm_extensions = use_extension("//bazel:extensions.bzl", "llvm_deps")

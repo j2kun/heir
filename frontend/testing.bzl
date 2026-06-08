@@ -12,6 +12,7 @@ def frontend_test(name, srcs, deps = [], data = [], tags = []):
         "openfhe+/src/pke/include",
         "cereal+/include",
         "rapidjson+/include",
+        "llvm++llvm+llvm-project/libcxx/include",
     ]
 
     libs = [

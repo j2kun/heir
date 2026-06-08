@@ -9,10 +9,14 @@ from typing import Callable, Optional
 Path = pathlib.Path
 
 
-# I would specify -stdlib here, but that would prevent the C compiler from discovering
-# the includes automatically and searching for them when compiling. Probably best
-# to let the C compiler try to automate it, rather than manually pass in stdlib paths.
-DEFAULT_COMPILER_FLAGS: list[str] = ["-O3", "-fPIC", "-shared", "-std=c++17"]
+# The hermetic bazel clang toolchain requires specifying stdlib here.
+DEFAULT_COMPILER_FLAGS: list[str] = [
+    "-O3",
+    "-fPIC",
+    "-shared",
+    "-std=c++20",
+    "-stdlib=libc++",
+]
 
 
 def to_cpp_compiler_args(prefix, strs):
