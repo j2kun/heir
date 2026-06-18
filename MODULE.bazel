@@ -192,3 +192,6 @@ crate.spec(
 )
 crate.from_specs()
 use_repo(crate, "crates")
+
+tamagoyaki = use_extension("//bazel:tamagoyaki.bzl", "tamagoyaki_dep")
+use_repo(tamagoyaki, "tamagoyaki")

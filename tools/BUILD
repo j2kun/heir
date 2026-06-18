@@ -352,3 +352,15 @@ bzl_library(
     srcs = ["mlir-translate.bzl"],
     visibility = ["//visibility:public"],
 )
+
+cc_binary(
+    name = "tamagoyaki-demo",
+    srcs = ["tamagoyaki-demo.cpp"],
+    deps = [
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:MlirOptLib",
+        "@llvm-project//mlir:RegisterAllDialects",
+        "@tamagoyaki//:MLIREmatch",
+        "@tamagoyaki//:MLIREquivalence",
+    ],
+)
