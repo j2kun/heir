@@ -44,6 +44,20 @@ FailureOr<ConvolutionLayout> getMatvecDiagonalConvolutionLayout(
 FailureOr<ConvolutionLayout> getMatvecDiagonalConvolutionLayout(
     linalg::Conv2DOp op, int64_t ciphertextSize);
 
+// Returns the naive (non-diagonalized) MatvecDiagonal alternative for a
+// convolution: the expanded Toeplitz filter matrix is packed row-major and the
+// kernel is `MatvecNaive`. This is a sound layout assignment; note that the
+// `MatvecNaive` kernel does not yet have a lowering (TODO(#1589)), so this
+// configuration is meant for layout exploration, not end-to-end compilation.
+FailureOr<ConvolutionLayout> getMatvecNaiveConvolutionLayout(
+    linalg::Conv2DNchwFchwOp op, int64_t ciphertextSize);
+FailureOr<ConvolutionLayout> getMatvecNaiveConvolutionLayout(
+    linalg::Conv1DNcwFcwOp op, int64_t ciphertextSize);
+FailureOr<ConvolutionLayout> getMatvecNaiveConvolutionLayout(
+    linalg::Conv1DOp op, int64_t ciphertextSize);
+FailureOr<ConvolutionLayout> getMatvecNaiveConvolutionLayout(
+    linalg::Conv2DOp op, int64_t ciphertextSize);
+
 // The detached ops that re-express a convolution in a chosen layout, wired to
 // each other but not inserted into any block. `resultConvert.getResult()` is
 // the value meant to replace the original convolution result.

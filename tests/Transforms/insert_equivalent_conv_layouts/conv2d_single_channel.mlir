@@ -1,14 +1,16 @@
 // RUN: tamagoyaki-demo --insert-equivalent-conv-layouts %s | FileCheck %s
 
-// Single-channel convs (linalg.conv_2d) are also handled. They have a single
-// MatvecDiagonal layout (no row-interchange variant), so the class holds the
-// one materialized variant plus the original.
+// Single-channel convs (linalg.conv_2d) are also handled. They have no
+// row-interchange variant, so the candidates are the MatvecDiagonal packing and
+// the naive MatvecNaive packing, plus the original.
 
+// CHECK-DAG: name = "MatvecDiagonal"
+// CHECK-DAG: name = "MatvecNaive"
 // CHECK: func.func @conv2d_single
-// CHECK: linalg.conv_2d {{.*}}secret.kernel = #{{.*}}tensor_ext.layout
+// CHECK-COUNT-2: linalg.conv_2d {{.*}}secret.kernel = #{{.*}}tensor_ext.layout
 // CHECK: linalg.conv_2d
 // CHECK-NOT: secret.kernel
-// CHECK: %[[CLASS:.*]] = equivalence.class %{{[0-9]+}}, %{{[0-9]+}} : tensor<4x4xf32>
+// CHECK: %[[CLASS:.*]] = equivalence.class %{{[0-9]+}}, %{{[0-9]+}}, %{{[0-9]+}} : tensor<4x4xf32>
 // CHECK: return %[[CLASS]]
 
 func.func @conv2d_single(%arg0: tensor<6x6xf32>, %filter: tensor<3x3xf32>) -> tensor<4x4xf32> {

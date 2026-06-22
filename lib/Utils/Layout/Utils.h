@@ -80,6 +80,13 @@ FailureOr<presburger::IntegerRelation> diagonalize2dMatrix(
 presburger::IntegerRelation getCyclicLayoutRelation(RankedTensorType type,
                                                     int64_t numSlots);
 
+// Applies a row-major layout onto a given 2-D matrix layout. This is the
+// non-diagonalized counterpart of diagonalize2dMatrix, used to pack the
+// expanded matrix for a naive matvec kernel.
+FailureOr<presburger::IntegerRelation> rowMajorize2dMatrix(
+    presburger::IntegerRelation relation, RankedTensorType originalType,
+    int64_t ciphertextSize);
+
 // Returns an IntegerRelation that represents a bicyclic layout for a matrix.
 // See https://eprint.iacr.org/2024/1762 for details.
 presburger::IntegerRelation getBicyclicLayoutRelation(

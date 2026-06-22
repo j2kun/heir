@@ -260,6 +260,27 @@ FailureOr<presburger::IntegerRelation> diagonalize2dMatrix(
   return relation;
 }
 
+FailureOr<presburger::IntegerRelation> rowMajorize2dMatrix(
+    presburger::IntegerRelation relation, RankedTensorType originalType,
+    int64_t ciphertextSize) {
+  // Get size of the matrix.
+  auto rowBound = relation.getConstantBound64(
+      BoundType::UB, relation.getVarKindOffset(VarKind::Range));
+  auto colBound = relation.getConstantBound64(
+      BoundType::UB, relation.getVarKindOffset(VarKind::Range) + 1);
+  if (!rowBound.has_value() || !colBound.has_value()) {
+    return failure();
+  }
+  RankedTensorType matrixType =
+      RankedTensorType::get({rowBound.value() + 1, colBound.value() + 1},
+                            originalType.getElementType());
+  auto rowMajorRelation = getRowMajorLayoutRelation(matrixType, ciphertextSize);
+
+  // Compose these relations.
+  relation.compose(rowMajorRelation);
+  return relation;
+}
+
 presburger::IntegerRelation getCyclicLayoutRelation(RankedTensorType type,
                                                     int64_t numSlots) {
   assert(type && type.getRank() >= 1 &&

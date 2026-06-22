@@ -129,6 +129,79 @@ FailureOr<ConvolutionLayout> getMatvecDiagonalConvolutionLayout(
   return getSingleChannelLayout(op, ciphertextSize);
 }
 
+// Assembles the naive layout from an already-expanded (Toeplitz) filter
+// relation: data row-major, the expanded matrix packed row-major (rather than
+// diagonalized), result row-major, MatvecNaive kernel.
+static FailureOr<ConvolutionLayout> makeNaiveLayout(
+    MLIRContext* ctx, RankedTensorType dataType, RankedTensorType filterType,
+    RankedTensorType outputType, IntegerRelation expandedFilterRelation,
+    int64_t ciphertextSize) {
+  FailureOr<IntegerRelation> filterRelation =
+      rowMajorize2dMatrix(expandedFilterRelation, filterType, ciphertextSize);
+  if (failed(filterRelation)) return failure();
+
+  ConvolutionLayout layout;
+  layout.dataLayout = LayoutAttr::getFromIntegerRelation(
+      ctx, getRowMajorLayoutRelation(dataType, ciphertextSize));
+  layout.filterLayout =
+      LayoutAttr::getFromIntegerRelation(ctx, *filterRelation);
+  layout.resultLayout = LayoutAttr::getFromIntegerRelation(
+      ctx, getRowMajorLayoutRelation(outputType, ciphertextSize));
+  layout.kernel = secret::KernelAttr::get(ctx, KernelName::MatvecNaive,
+                                          /*force=*/false);
+  return layout;
+}
+
+FailureOr<ConvolutionLayout> getMatvecNaiveConvolutionLayout(
+    linalg::Conv2DNchwFchwOp op, int64_t ciphertextSize) {
+  auto dataType = cast<RankedTensorType>(op.getInputs().front().getType());
+  auto filterType = cast<RankedTensorType>(op.getInputs().back().getType());
+  auto outputType = cast<RankedTensorType>(op->getResult(0).getType());
+  SmallVector<int64_t> strides(op.getStrides().getValues<int64_t>().begin(),
+                               op.getStrides().getValues<int64_t>().end());
+  return makeNaiveLayout(
+      op.getContext(), dataType, filterType, outputType,
+      get2dConvChwFchwFilterRelation(filterType, dataType, strides,
+                                     /*padding=*/0),
+      ciphertextSize);
+}
+
+FailureOr<ConvolutionLayout> getMatvecNaiveConvolutionLayout(
+    linalg::Conv1DNcwFcwOp op, int64_t ciphertextSize) {
+  auto dataType = cast<RankedTensorType>(op.getInputs().front().getType());
+  auto filterType = cast<RankedTensorType>(op.getInputs().back().getType());
+  auto outputType = cast<RankedTensorType>(op->getResult(0).getType());
+  int64_t stride = op.getStrides().getValues<int64_t>().begin()[0];
+  return makeNaiveLayout(
+      op.getContext(), dataType, filterType, outputType,
+      get1dConvCwFcwFilterRelation(filterType, dataType, stride, /*padding=*/0),
+      ciphertextSize);
+}
+
+FailureOr<ConvolutionLayout> getMatvecNaiveConvolutionLayout(
+    linalg::Conv1DOp op, int64_t ciphertextSize) {
+  auto dataType = cast<RankedTensorType>(op.getInputs().front().getType());
+  auto filterType = cast<RankedTensorType>(op.getInputs().back().getType());
+  auto outputType = cast<RankedTensorType>(op->getResult(0).getType());
+  return makeNaiveLayout(
+      op.getContext(), dataType, filterType, outputType,
+      get1dConvFilterRelation(filterType, dataType, /*stride=*/1,
+                              /*padding=*/0),
+      ciphertextSize);
+}
+
+FailureOr<ConvolutionLayout> getMatvecNaiveConvolutionLayout(
+    linalg::Conv2DOp op, int64_t ciphertextSize) {
+  auto dataType = cast<RankedTensorType>(op.getInputs().front().getType());
+  auto filterType = cast<RankedTensorType>(op.getInputs().back().getType());
+  auto outputType = cast<RankedTensorType>(op->getResult(0).getType());
+  return makeNaiveLayout(
+      op.getContext(), dataType, filterType, outputType,
+      get2dConvFilterRelation(filterType, dataType, /*strides=*/{1, 1},
+                              /*padding=*/0),
+      ciphertextSize);
+}
+
 namespace {
 
 // Creates a detached convert_layout op (built via OperationState so it is never
