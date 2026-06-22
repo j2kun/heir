@@ -92,6 +92,43 @@ FailureOr<ConvolutionLayout> getMatvecDiagonalConvolutionLayout(
   return layout;
 }
 
+// Shared implementation for the single-channel conv ops, which differ only in
+// their op type: data row-major, filter diagonalized (no row-interchange
+// variant), result row-major, MatvecDiagonal kernel.
+template <typename ConvOpTy>
+static FailureOr<ConvolutionLayout> getSingleChannelLayout(
+    ConvOpTy op, int64_t ciphertextSize) {
+  MLIRContext* ctx = op.getContext();
+  auto dataType = cast<RankedTensorType>(op.getInputs().front().getType());
+  auto filterType = cast<RankedTensorType>(op.getInputs().back().getType());
+  auto outputType = cast<RankedTensorType>(op->getResult(0).getType());
+
+  FailureOr<IntegerRelation> filterRelation = getConvFilterDiagonalizedRelation(
+      filterType, dataType, /*padding=*/0, ciphertextSize);
+  if (failed(filterRelation)) return failure();
+
+  ConvolutionLayout layout;
+  layout.dataLayout = LayoutAttr::getFromIntegerRelation(
+      ctx, getRowMajorLayoutRelation(dataType, ciphertextSize));
+  layout.filterLayout =
+      LayoutAttr::getFromIntegerRelation(ctx, *filterRelation);
+  layout.resultLayout = LayoutAttr::getFromIntegerRelation(
+      ctx, getRowMajorLayoutRelation(outputType, ciphertextSize));
+  layout.kernel = secret::KernelAttr::get(ctx, KernelName::MatvecDiagonal,
+                                          /*force=*/false);
+  return layout;
+}
+
+FailureOr<ConvolutionLayout> getMatvecDiagonalConvolutionLayout(
+    linalg::Conv1DOp op, int64_t ciphertextSize) {
+  return getSingleChannelLayout(op, ciphertextSize);
+}
+
+FailureOr<ConvolutionLayout> getMatvecDiagonalConvolutionLayout(
+    linalg::Conv2DOp op, int64_t ciphertextSize) {
+  return getSingleChannelLayout(op, ciphertextSize);
+}
+
 namespace {
 
 // Creates a detached convert_layout op (built via OperationState so it is never

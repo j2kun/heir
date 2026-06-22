@@ -15,7 +15,8 @@
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Interfaces/DestinationStyleOpInterface.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -41,13 +42,49 @@ struct InsertEquivalentConvLayouts
     : impl::InsertEquivalentConvLayoutsBase<InsertEquivalentConvLayouts> {
   using InsertEquivalentConvLayoutsBase::InsertEquivalentConvLayoutsBase;
 
-  // Materializes every valid layout for `op` and groups the results in an
-  // equivalence.class. ConvOpTy is one of the multichannel linalg conv ops.
+  // Candidate layouts for a multichannel conv: the MatvecDiagonal kernel with
+  // and without the pixel-shuffle row-interchange optimization. Identical
+  // candidates (e.g. when the stride is 1, the two coincide) are deduplicated.
   template <typename ConvOpTy>
-  void processConv(ConvOpTy op) {
-    MLIRContext* ctx = op.getContext();
-    auto dataType = cast<RankedTensorType>(op.getInputs().front().getType());
-    auto filterType = cast<RankedTensorType>(op.getInputs().back().getType());
+  SmallVector<ConvolutionLayout> enumerateLayouts(ConvOpTy op) {
+    SmallVector<ConvolutionLayout> configs;
+    for (bool interchangeRows : {false, true}) {
+      FailureOr<ConvolutionLayout> config = getMatvecDiagonalConvolutionLayout(
+          op, ciphertextSize, interchangeRows);
+      if (failed(config)) continue;
+      bool duplicate = llvm::any_of(configs, [&](const ConvolutionLayout& e) {
+        return e.dataLayout == config->dataLayout &&
+               e.filterLayout == config->filterLayout &&
+               e.resultLayout == config->resultLayout;
+      });
+      if (!duplicate) configs.push_back(*config);
+    }
+    return configs;
+  }
+
+  // Candidate layouts for a single-channel conv: a single MatvecDiagonal
+  // packing (no row-interchange variant).
+  template <typename ConvOpTy>
+  SmallVector<ConvolutionLayout> enumerateSingleChannelLayouts(ConvOpTy op) {
+    SmallVector<ConvolutionLayout> configs;
+    FailureOr<ConvolutionLayout> config =
+        getMatvecDiagonalConvolutionLayout(op, ciphertextSize);
+    if (succeeded(config)) configs.push_back(*config);
+    return configs;
+  }
+
+  // Materializes each candidate layout for `op` and groups the results in an
+  // equivalence.class.
+  void buildEquivalenceClass(Operation* op,
+                             ArrayRef<ConvolutionLayout> configs) {
+    if (configs.empty()) return;
+
+    auto dpsOp = cast<DestinationStyleOpInterface>(op);
+    MLIRContext* ctx = op->getContext();
+    auto dataType =
+        cast<RankedTensorType>(dpsOp.getDpsInputOperand(0)->get().getType());
+    auto filterType =
+        cast<RankedTensorType>(dpsOp.getDpsInputOperand(1)->get().getType());
     auto outputType = cast<RankedTensorType>(op->getResult(0).getType());
 
     // A layout-free value is treated as living in the canonical row-major
@@ -56,15 +93,6 @@ struct InsertEquivalentConvLayouts
     LayoutAttr dataFrom = rowMajorLayout(ctx, dataType, ciphertextSize);
     LayoutAttr filterFrom = rowMajorLayout(ctx, filterType, ciphertextSize);
     LayoutAttr resultTo = rowMajorLayout(ctx, outputType, ciphertextSize);
-
-    // Enumerate the candidate layouts. Only valid ones are kept.
-    SmallVector<ConvolutionLayout> configs;
-    for (bool interchangeRows : {false, true}) {
-      FailureOr<ConvolutionLayout> config = getMatvecDiagonalConvolutionLayout(
-          op, ciphertextSize, interchangeRows);
-      if (succeeded(config)) configs.push_back(*config);
-    }
-    if (configs.empty()) return;
 
     OpBuilder builder(op);
     SmallVector<Value> classInputs;
@@ -89,7 +117,7 @@ struct InsertEquivalentConvLayouts
     // The class consumes the original result, so it must come after `op`.
     builder.setInsertionPointAfter(op);
     auto classOp = equivalence::ClassOp::create(
-        builder, op.getLoc(), outputType, classInputs, /*leader=*/Value(),
+        builder, op->getLoc(), outputType, classInputs, /*leader=*/Value(),
         /*min_cost_index=*/IntegerAttr());
 
     // In either case, route the original convolution's users through the class
@@ -107,15 +135,22 @@ struct InsertEquivalentConvLayouts
     // Collect first so that erasing the originals does not disturb the walk.
     SmallVector<Operation*> convs;
     getOperation()->walk([&](Operation* op) {
-      if (isa<linalg::Conv2DNchwFchwOp, linalg::Conv1DNcwFcwOp>(op))
+      if (isa<linalg::Conv2DNchwFchwOp, linalg::Conv1DNcwFcwOp,
+              linalg::Conv2DOp, linalg::Conv1DOp>(op))
         convs.push_back(op);
     });
 
     for (Operation* op : convs) {
+      SmallVector<ConvolutionLayout> configs;
       if (auto conv = dyn_cast<linalg::Conv2DNchwFchwOp>(op))
-        processConv(conv);
+        configs = enumerateLayouts(conv);
       else if (auto conv = dyn_cast<linalg::Conv1DNcwFcwOp>(op))
-        processConv(conv);
+        configs = enumerateLayouts(conv);
+      else if (auto conv = dyn_cast<linalg::Conv2DOp>(op))
+        configs = enumerateSingleChannelLayouts(conv);
+      else if (auto conv = dyn_cast<linalg::Conv1DOp>(op))
+        configs = enumerateSingleChannelLayouts(conv);
+      buildEquivalenceClass(op, configs);
     }
   }
 };
