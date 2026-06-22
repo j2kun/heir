@@ -37,6 +37,13 @@ FailureOr<ConvolutionLayout> getMatvecDiagonalConvolutionLayout(
 FailureOr<ConvolutionLayout> getMatvecDiagonalConvolutionLayout(
     linalg::Conv1DNcwFcwOp op, int64_t ciphertextSize, bool interchangeRows);
 
+// Returns the MatvecDiagonal packing for a single-channel convolution. There is
+// no row-interchange variant for these ops.
+FailureOr<ConvolutionLayout> getMatvecDiagonalConvolutionLayout(
+    linalg::Conv1DOp op, int64_t ciphertextSize);
+FailureOr<ConvolutionLayout> getMatvecDiagonalConvolutionLayout(
+    linalg::Conv2DOp op, int64_t ciphertextSize);
+
 // The detached ops that re-express a convolution in a chosen layout, wired to
 // each other but not inserted into any block. `resultConvert.getResult()` is
 // the value meant to replace the original convolution result.
