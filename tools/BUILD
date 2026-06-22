@@ -358,6 +358,9 @@ cc_binary(
     name = "tamagoyaki-demo",
     srcs = ["tamagoyaki-demo.cpp"],
     deps = [
+        "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Transforms/InsertEquivalentConvLayouts",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:MlirOptLib",
         "@llvm-project//mlir:RegisterAllDialects",
