@@ -6,21 +6,33 @@ include "mlir/Pass/PassBase.td"
 def InsertEquivalentConvLayouts : Pass<"insert-equivalent-conv-layouts"> {
   let summary = "Materialize several layout assignments for each convolution.";
   let description = [{
-    For every multichannel convolution, this pass generates multiple valid
-    layout assignments (e.g. the Halevi-Shoup MatvecDiagonal packing with and
-    without the pixel-shuffle row-interchange optimization). Each assignment is
-    materialized as its own chain of `tensor_ext.convert_layout` ops feeding a
-    copy of the convolution and a trailing conversion back to a common layout,
-    inserted alongside the original op.
+    For every convolution (the multichannel `linalg.conv_1d_ncw_fcw` and
+    `linalg.conv_2d_nchw_fchw`, as well as the single-channel `linalg.conv_1d`
+    and `linalg.conv_2d`), this pass generates several valid layout assignments
+    and records that they are interchangeable.
 
-    The results of these trailing conversions are collected as the operands of
-    an `equivalence.class` op, which records that they are interchangeable
-    implementations of the same value. Users of the original convolution are
-    rerouted to read the class result, so downstream e-graph extraction can
-    select among the members.
+    The candidates are:
+
+      * the Halevi-Shoup `MatvecDiagonal` packing (for multichannel convs, both
+        with and without the pixel-shuffle row-interchange optimization; the two
+        coincide for stride 1 and are then deduplicated), and
+      * the naive `MatvecNaive` packing, in which the expanded Toeplitz filter
+        matrix is laid out row-major instead of diagonalized.
+
+    Each candidate is materialized as its own chain of `tensor_ext.convert_layout`
+    ops feeding a copy of the convolution (carrying its `tensor_ext.layout` and
+    `secret.kernel` attributes) and a trailing conversion back to a common
+    layout, inserted alongside the original op. The results of these trailing
+    conversions become the operands of an `equivalence.class` op, and users of
+    the original convolution are rerouted to read the class result, so
+    downstream e-graph extraction can select among the members.
 
     With `remove-original`, the original convolution is erased. Otherwise it is
     kept and added to the class as another equivalent member.
+
+    Note: the `MatvecNaive` kernel does not yet have a lowering (TODO(#1589)).
+    Its candidate is a sound layout assignment for exploration, but a program
+    that selects it cannot currently be lowered end-to-end.
   }];
   let dependentDialects = [
     "mlir::heir::tensor_ext::TensorExtDialect",
