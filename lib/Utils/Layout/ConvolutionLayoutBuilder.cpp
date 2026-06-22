@@ -94,11 +94,9 @@ FailureOr<ConvolutionLayout> getMatvecDiagonalConvolutionLayout(
 
 namespace {
 
-// Creates a detached convert_layout op that re-packs `value` from `fromLayout`
-// to `toLayout`. The op is built via an OperationState and Operation::create so
-// that it is never inserted into a block. We also stamp the target layout on
-// the op as a `tensor_ext.layout` attribute, matching the convention used
-// elsewhere in the layout pipeline.
+// Creates a detached convert_layout op (built via OperationState so it is never
+// inserted into a block) that re-packs `value` from `fromLayout` to `toLayout`,
+// stamping the target layout as a `tensor_ext.layout` attribute.
 ConvertLayoutOp createDetachedConvertLayout(OpBuilder& builder, Location loc,
                                             Value value, LayoutAttr fromLayout,
                                             LayoutAttr toLayout,
