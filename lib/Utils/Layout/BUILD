@@ -77,6 +77,25 @@ cc_library(
 )
 
 cc_library(
+    name = "ConvolutionLayoutBuilder",
+    srcs = ["ConvolutionLayoutBuilder.cpp"],
+    hdrs = ["ConvolutionLayoutBuilder.h"],
+    deps = [
+        ":Convolution",
+        ":Utils",
+        "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Kernel",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LinalgDialect",
+        "@llvm-project//mlir:LinalgInterfaces",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
     name = "Evaluate",
     srcs = ["Evaluate.cpp"],
     hdrs = ["Evaluate.h"],
