@@ -1,13 +1,16 @@
 // RUN: tamagoyaki-demo --insert-equivalent-conv-layouts %s | FileCheck %s
 
-// The pass also handles 1-D multichannel convolutions.
+// The pass also handles 1-D multichannel convolutions, with the same three
+// variants (two MatvecDiagonal, one MatvecNaive).
 
+// CHECK-DAG: name = "MatvecDiagonal"
+// CHECK-DAG: name = "MatvecNaive"
 // CHECK: func.func @conv1d
-// CHECK-COUNT-2: linalg.conv_1d_ncw_fcw {{.*}}secret.kernel = #{{.*}}tensor_ext.layout
-// The kept original joins the class as a third member; the result is the class.
+// CHECK-COUNT-3: linalg.conv_1d_ncw_fcw {{.*}}secret.kernel = #{{.*}}tensor_ext.layout
+// The kept original joins the class as a fourth member; the result is the class.
 // CHECK: linalg.conv_1d_ncw_fcw
 // CHECK-NOT: secret.kernel
-// CHECK: %[[CLASS:.*]] = equivalence.class %{{[0-9]+}}, %{{[0-9]+}}, %{{[0-9]+}} : tensor<1x8x2xf32>
+// CHECK: %[[CLASS:.*]] = equivalence.class %{{[0-9]+}}, %{{[0-9]+}}, %{{[0-9]+}}, %{{[0-9]+}} : tensor<1x8x2xf32>
 // CHECK: return %[[CLASS]]
 
 func.func @conv1d(%arg0: tensor<1x1x4xf32>, %filter: tensor<8x1x2xf32>) -> tensor<1x8x2xf32> {

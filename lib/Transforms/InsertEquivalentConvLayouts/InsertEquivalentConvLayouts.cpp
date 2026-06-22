@@ -42,34 +42,39 @@ struct InsertEquivalentConvLayouts
     : impl::InsertEquivalentConvLayoutsBase<InsertEquivalentConvLayouts> {
   using InsertEquivalentConvLayoutsBase::InsertEquivalentConvLayoutsBase;
 
+  // Appends a candidate layout, skipping failures and duplicates.
+  void appendUnique(SmallVector<ConvolutionLayout>& configs,
+                    const FailureOr<ConvolutionLayout>& config) {
+    if (failed(config)) return;
+    bool duplicate = llvm::any_of(configs, [&](const ConvolutionLayout& e) {
+      return e.dataLayout == config->dataLayout &&
+             e.filterLayout == config->filterLayout &&
+             e.resultLayout == config->resultLayout;
+    });
+    if (!duplicate) configs.push_back(*config);
+  }
+
   // Candidate layouts for a multichannel conv: the MatvecDiagonal kernel with
-  // and without the pixel-shuffle row-interchange optimization. Identical
-  // candidates (e.g. when the stride is 1, the two coincide) are deduplicated.
+  // and without the pixel-shuffle row-interchange optimization (deduplicated,
+  // since for stride 1 the two coincide), plus the naive MatvecNaive packing.
   template <typename ConvOpTy>
   SmallVector<ConvolutionLayout> enumerateLayouts(ConvOpTy op) {
     SmallVector<ConvolutionLayout> configs;
-    for (bool interchangeRows : {false, true}) {
-      FailureOr<ConvolutionLayout> config = getMatvecDiagonalConvolutionLayout(
-          op, ciphertextSize, interchangeRows);
-      if (failed(config)) continue;
-      bool duplicate = llvm::any_of(configs, [&](const ConvolutionLayout& e) {
-        return e.dataLayout == config->dataLayout &&
-               e.filterLayout == config->filterLayout &&
-               e.resultLayout == config->resultLayout;
-      });
-      if (!duplicate) configs.push_back(*config);
-    }
+    for (bool interchangeRows : {false, true})
+      appendUnique(configs, getMatvecDiagonalConvolutionLayout(
+                                op, ciphertextSize, interchangeRows));
+    appendUnique(configs, getMatvecNaiveConvolutionLayout(op, ciphertextSize));
     return configs;
   }
 
-  // Candidate layouts for a single-channel conv: a single MatvecDiagonal
-  // packing (no row-interchange variant).
+  // Candidate layouts for a single-channel conv: the MatvecDiagonal packing (no
+  // row-interchange variant) plus the naive MatvecNaive packing.
   template <typename ConvOpTy>
   SmallVector<ConvolutionLayout> enumerateSingleChannelLayouts(ConvOpTy op) {
     SmallVector<ConvolutionLayout> configs;
-    FailureOr<ConvolutionLayout> config =
-        getMatvecDiagonalConvolutionLayout(op, ciphertextSize);
-    if (succeeded(config)) configs.push_back(*config);
+    appendUnique(configs,
+                 getMatvecDiagonalConvolutionLayout(op, ciphertextSize));
+    appendUnique(configs, getMatvecNaiveConvolutionLayout(op, ciphertextSize));
     return configs;
   }
 
