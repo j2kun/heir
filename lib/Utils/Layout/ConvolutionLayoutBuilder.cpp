@@ -17,7 +17,6 @@
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
-#include "mlir/include/mlir/IR/OperationSupport.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/Interfaces/DestinationStyleOpInterface.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
@@ -204,17 +203,15 @@ FailureOr<ConvolutionLayout> getMatvecNaiveConvolutionLayout(
 
 namespace {
 
-// Creates a detached convert_layout op (built via OperationState so it is never
-// inserted into a block) that re-packs `value` from `fromLayout` to `toLayout`,
-// stamping the target layout as a `tensor_ext.layout` attribute.
+// Creates a convert_layout op that re-packs `value` from `fromLayout to
+// `toLayout`, stamping the target layout as a `tensor_ext.layout` attribute.
 ConvertLayoutOp createDetachedConvertLayout(OpBuilder& builder, Location loc,
                                             Value value, LayoutAttr fromLayout,
                                             LayoutAttr toLayout,
                                             ArrayRef<int64_t> domainSchedule) {
-  OperationState state(loc, ConvertLayoutOp::getOperationName());
-  ConvertLayoutOp::build(builder, state, value, fromLayout, toLayout,
-                         builder.getDenseI64ArrayAttr(domainSchedule));
-  auto convertOp = cast<ConvertLayoutOp>(Operation::create(state));
+  auto convertOp =
+      ConvertLayoutOp::create(builder, loc, value, fromLayout, toLayout,
+                              builder.getDenseI64ArrayAttr(domainSchedule));
   convertOp->setAttr(tensor_ext::TensorExtDialect::kLayoutAttrName, toLayout);
   return convertOp;
 }
