@@ -26,9 +26,7 @@ func.func @fuse_matmul(%arg0: tensor<2x3xf32>, %arg1: tensor<3x4xf32>, %arg2: te
 // CHECK: %[[EMPTY_W:.*]] = tensor.empty() : tensor<2x3xf32>
 // CHECK: %[[BROADCAST_W:.*]] = linalg.broadcast ins(%arg2 : tensor<2xf32>) outs(%[[EMPTY_W]] : tensor<2x3xf32>) dimensions = [1]
 // CHECK: %[[SCALED_W:.*]] = arith.mulf %arg0, %[[BROADCAST_W]] : tensor<2x3xf32>
-// CHECK: %[[EMPTY_OUT:.*]] = tensor.empty() : tensor<2xf32>
-// CHECK: %[[BROADCAST_OUT:.*]] = linalg.broadcast ins(%arg3 : tensor<2xf32>) outs(%[[EMPTY_OUT]] : tensor<2xf32>) dimensions = []
-// CHECK: %[[RESULT:.*]] = linalg.matvec ins(%[[SCALED_W]], %arg1 : tensor<2x3xf32>, tensor<3xf32>) outs(%[[BROADCAST_OUT]] : tensor<2xf32>)
+// CHECK: %[[RESULT:.*]] = linalg.matvec ins(%[[SCALED_W]], %arg1 : tensor<2x3xf32>, tensor<3xf32>) outs(%arg3 : tensor<2xf32>)
 // CHECK: return %[[RESULT]]
 func.func @fuse_matvec(%arg0: tensor<2x3xf32>, %arg1: tensor<3xf32>, %arg2: tensor<2xf32>, %arg3: tensor<2xf32>) -> tensor<2xf32> {
   %0 = tensor.empty() : tensor<2xf32>
@@ -44,9 +42,7 @@ func.func @fuse_matvec(%arg0: tensor<2x3xf32>, %arg1: tensor<3xf32>, %arg2: tens
 // CHECK: %[[EMPTY_W:.*]] = tensor.empty() : tensor<3x4xf32>
 // CHECK: %[[BROADCAST_W:.*]] = linalg.broadcast ins(%arg2 : tensor<4xf32>) outs(%[[EMPTY_W]] : tensor<3x4xf32>) dimensions = [0]
 // CHECK: %[[SCALED_W:.*]] = arith.mulf %arg1, %[[BROADCAST_W]] : tensor<3x4xf32>
-// CHECK: %[[EMPTY_OUT:.*]] = tensor.empty() : tensor<4xf32>
-// CHECK: %[[BROADCAST_OUT:.*]] = linalg.broadcast ins(%arg3 : tensor<4xf32>) outs(%[[EMPTY_OUT]] : tensor<4xf32>) dimensions = []
-// CHECK: %[[RESULT:.*]] = linalg.vecmat ins(%arg0, %[[SCALED_W]] : tensor<3xf32>, tensor<3x4xf32>) outs(%[[BROADCAST_OUT]] : tensor<4xf32>)
+// CHECK: %[[RESULT:.*]] = linalg.vecmat ins(%arg0, %[[SCALED_W]] : tensor<3xf32>, tensor<3x4xf32>) outs(%arg3 : tensor<4xf32>)
 // CHECK: return %[[RESULT]]
 func.func @fuse_vecmat(%arg0: tensor<3xf32>, %arg1: tensor<3x4xf32>, %arg2: tensor<4xf32>, %arg3: tensor<4xf32>) -> tensor<4xf32> {
   %0 = tensor.empty() : tensor<4xf32>
