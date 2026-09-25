@@ -12,7 +12,8 @@ def CheddarEmitCBoundary : Pass<"cheddar-emitc-boundary", "::mlir::ModuleOp"> {
     (`const T&` if only read, `T&` if written), calls to such functions are
     re-emitted as `emitc.call_opaque`, the standard and CHEDDAR headers plus
     `using namespace cheddar;` / `using word = uint64_t;` are emitted so the
-    translated C++ compiles as-is.
+    translated C++ compiles as-is, and HEIR-internal `tensor_ext.*` argument
+    attributes are dropped.
 
     The pass also emits the definitions of the small `heir::` helpers that the
     lowering of `cheddar.get_encoder` and `cheddar.get_mult_key` calls.

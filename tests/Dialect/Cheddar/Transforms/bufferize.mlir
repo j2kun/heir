@@ -141,18 +141,27 @@ func.func @loop_packed(%ctx: !cheddar.context, %input: tensor<!cheddar.ciphertex
   return %result : tensor<8x!cheddar.ciphertext>
 }
 
-// A returned call result goes through a temporary and one copy into the
-// out-param; the EmitC lowering turns the copy of a dead temporary into a move.
+// Returned call results forward the caller's destination through the call
+// chain, even when callers precede their callees in the module.
+// CHECK: func.func @forward_chain(
+// CHECK-SAME: %[[OUT:[a-zA-Z0-9_]+]]: memref<!ciphertext> {bufferize.result}
+// CHECK-NOT: memref.alloc
+// CHECK: call @forward({{.*}}, %[[OUT]])
+// CHECK-NEXT: return
+func.func @forward_chain(%ctx: !cheddar.context, %input: tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext> {
+  %result = func.call @forward(%ctx, %input) : (!cheddar.context, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
+  return %result : tensor<!cheddar.ciphertext>
+}
+
 func.func private @produce(%ctx: !cheddar.context, %input: tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext> {
   %empty = tensor.empty() : tensor<!cheddar.ciphertext>
   %result = cheddar.neg %ctx, %input, %empty : (!cheddar.context, tensor<!cheddar.ciphertext>, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
   return %result : tensor<!cheddar.ciphertext>
 }
-// CHECK: func.func @forward
+// CHECK: func.func @forward(
 // CHECK-SAME: %[[OUT:[a-zA-Z0-9_]+]]: memref<!ciphertext> {bufferize.result}
-// CHECK: %[[TMP:.*]] = memref.alloc() : memref<!ciphertext>
-// CHECK: call @produce({{.*}}, %[[TMP]])
-// CHECK: memref.copy %[[TMP]], %[[OUT]]
+// CHECK-NOT: memref.alloc
+// CHECK: call @produce({{.*}}, %[[OUT]])
 // CHECK-NEXT: return
 func.func @forward(%ctx: !cheddar.context, %input: tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext> {
   %result = func.call @produce(%ctx, %input) : (!cheddar.context, tensor<!cheddar.ciphertext>) -> tensor<!cheddar.ciphertext>
@@ -171,13 +180,10 @@ func.func @keygen(%ctx: tensor<!cheddar.context>) -> (tensor<!cheddar.context>, 
   return %ctx, %ui2 : tensor<!cheddar.context>, tensor<!cheddar.user_interface>
 }
 // CHECK: func.func @configure(%[[PARAMS:.*]]: !parameter, %[[CTX:.*]]: memref<!context> {bufferize.result}, %[[UI:.*]]: memref<!user_interface> {bufferize.result})
-// CHECK: %[[TMP_CTX:.*]] = memref.alloc() : memref<!context>
-// CHECK: call @setup(%[[PARAMS]], %[[TMP_CTX]])
-// CHECK: %[[TMP_UI:.*]] = memref.alloc() : memref<!user_interface>
-// CHECK: call @keygen(%[[TMP_CTX]], %[[TMP_UI]])
-// CHECK: memref.copy %[[TMP_CTX]], %[[CTX]]
-// CHECK: memref.copy %[[TMP_UI]], %[[UI]]
-// CHECK: return
+// CHECK-NOT: memref.alloc
+// CHECK: call @setup(%[[PARAMS]], %[[CTX]])
+// CHECK-NEXT: call @keygen(%[[CTX]], %[[UI]])
+// CHECK-NEXT: return
 func.func @configure(%params: !cheddar.parameter) -> (tensor<!cheddar.context>, tensor<!cheddar.user_interface>) {
   %ctx = func.call @setup(%params) : (!cheddar.parameter) -> tensor<!cheddar.context>
   %ctx2, %ui = func.call @keygen(%ctx) : (tensor<!cheddar.context>) -> (tensor<!cheddar.context>, tensor<!cheddar.user_interface>)

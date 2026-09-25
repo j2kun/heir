@@ -161,6 +161,22 @@ func.func @loop_store(%ctx: !context, %in: tensor<!ciphertext>)
   return %r : tensor<8x!ciphertext>
 }
 
+// Returning a call result leaves a temporary plus a copy into the out-param
+// after bufferization; the copy of the dead temporary becomes a move.
+func.func private @produce(%ctx: !context, %ct: tensor<!ciphertext>)
+    -> tensor<!ciphertext> {
+  %d = tensor.empty() : tensor<!ciphertext>
+  %r = cheddar.neg %ctx, %ct, %d
+      : (!context, tensor<!ciphertext>, tensor<!ciphertext>) -> tensor<!ciphertext>
+  return %r : tensor<!ciphertext>
+}
+func.func @forward_call(%ctx: !context, %ct: tensor<!ciphertext>)
+    -> tensor<!ciphertext> {
+  %r = func.call @produce(%ctx, %ct)
+      : (!context, tensor<!ciphertext>) -> tensor<!ciphertext>
+  return %r : tensor<!ciphertext>
+}
+
 // Support values derived from the context and key material.
 func.func @support_values(%ctx: !context, %ui: !user_interface,
                           %ct: tensor<!ciphertext>) -> tensor<!ciphertext> {

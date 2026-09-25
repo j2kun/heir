@@ -7,6 +7,7 @@
 #include "lib/Dialect/Cheddar/IR/CheddarDialect.h"
 #include "lib/Dialect/Cheddar/IR/CheddarOps.h"
 #include "lib/Dialect/Cheddar/IR/CheddarTypes.h"
+#include "lib/Utils/TargetUtils.h"
 #include "llvm/include/llvm/ADT/DenseSet.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"      // from @llvm-project
@@ -498,6 +499,59 @@ struct ConvertHConjAdd : public OpConversionPattern<cheddar::HConjAddOp> {
   }
 };
 
+// A `__heir_debug_*` call (see LWEToCheddar) -> a free C++ call
+// `__heir_debug(encoder, ui, ct, "name", "metadata")` (`ct, N` for a buffer of
+// N ciphertexts), the name/metadata taken from the
+// `debug.name`/`debug.metadata` attributes.
+struct ConvertDebugCall : public OpConversionPattern<func::CallOp> {
+  using OpConversionPattern::OpConversionPattern;
+  LogicalResult matchAndRewrite(
+      func::CallOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    if (!isDebugPort(op.getCallee())) return failure();
+    auto* ctx = rewriter.getContext();
+    auto escape = [](StringRef s) {
+      std::string out = "\"";
+      for (char c : s) {
+        if (c == '"' || c == '\\') out += '\\';
+        out += c;
+      }
+      out += '"';
+      return out;
+    };
+    std::string name;
+    if (auto n = op->getAttrOfType<StringAttr>("debug.name"))
+      name = escape(n.getValue());
+    else
+      name = "\"\"";
+    std::string metadata;
+    if (auto m = op->getAttrOfType<StringAttr>("debug.metadata"))
+      metadata = escape(m.getValue());
+    else
+      metadata = "\"\"";
+    SmallVector<Value> operands(adaptor.getOperands().begin(),
+                                adaptor.getOperands().end());
+    SmallVector<Attribute> args;
+    for (size_t i = 0; i < operands.size(); ++i) {
+      args.push_back(rewriter.getIndexAttr(i));
+      // A payload buffer decays to a pointer; pass its element count along.
+      auto buffer = dyn_cast<MemRefType>(op.getOperand(i).getType());
+      if (buffer && buffer.getRank() > 0 &&
+          !payloadTypeName(buffer.getElementType()).empty())
+        args.push_back(emitc::OpaqueAttr::get(
+            ctx, std::to_string(numElements(buffer.getShape()))));
+    }
+    args.push_back(emitc::OpaqueAttr::get(ctx, name));
+    args.push_back(emitc::OpaqueAttr::get(ctx, metadata));
+    CallOpaqueOp::create(rewriter, op.getLoc(), TypeRange{},
+                         rewriter.getStringAttr("__heir_debug"), operands,
+                         rewriter.getArrayAttr(args),
+                         /*template_args=*/ArrayAttr{});
+    rewriter.eraseOp(op);
+    return success();
+  }
+};
+
 //===----------------------------------------------------------------------===//
 // memref op patterns (payload + float)
 //===----------------------------------------------------------------------===//
@@ -636,21 +690,117 @@ static Value unwrapSingleUnrealizedCast(Value v) {
   return v;
 }
 
-// Copying a payload buffer needs CHEDDAR's deep-copy API, which is not lowered
-// yet. Reject it rather than letting the stock MemRefToEmitC pattern emit a
-// memcpy of non-trivially-copyable objects. A self-copy is a no-op.
-struct RejectPayloadCopy : public OpConversionPattern<mlir::memref::CopyOp> {
+// True for a move-only cheddar element type (payloads and the user interface).
+bool isMoveOnlyElement(Type elementType) {
+  return !payloadTypeName(elementType).empty() ||
+         isa<cheddar::UserInterfaceType>(elementType);
+}
+
+// A copy whose source is a temporary allocated in the same block and never
+// used again (its deallocation aside). Nothing can observe the temporary after
+// the copy, so transferring its storage is indistinguishable from copying it.
+bool isCopyFromDeadLocal(mlir::memref::CopyOp copy) {
+  if (copy.getSource() == copy.getTarget()) return false;
+  auto alloc = copy.getSource().getDefiningOp<mlir::memref::AllocOp>();
+  if (!alloc || alloc->getBlock() != copy->getBlock()) return false;
+  for (Operation* user : alloc->getUsers()) {
+    if (user == copy || isa<mlir::memref::DeallocOp>(user)) continue;
+    // Anything that could hand out an alias of the temporary (a view, a
+    // buffer-typed result, a region terminator yielding it) disqualifies it.
+    if (isa<ViewLikeOpInterface>(user) ||
+        user->hasTrait<OpTrait::IsTerminator>() ||
+        llvm::any_of(user->getResultTypes(),
+                     [](Type t) { return isa<BaseMemRefType>(t); }))
+      return false;
+    Operation* ancestor = copy->getBlock()->findAncestorOpInBlock(*user);
+    if (!ancestor || !ancestor->isBeforeInBlock(copy)) return false;
+  }
+  return true;
+}
+
+// A copy out of a dead local temporary moves instead: `dst = std::move(tmp)`.
+// This is the shape One-Shot Bufferize leaves when a value needed a fresh
+// buffer (its destination was still live) and is then placed into the result.
+struct MoveCopyFromDeadLocal
+    : public OpConversionPattern<mlir::memref::CopyOp> {
   using OpConversionPattern::OpConversionPattern;
   LogicalResult matchAndRewrite(
       mlir::memref::CopyOp op, OpAdaptor adaptor,
       ConversionPatternRewriter& rewriter) const override {
     auto sourceType = cast<MemRefType>(op.getSource().getType());
-    if (payloadTypeName(sourceType.getElementType()).empty()) return failure();
+    if (!isMoveOnlyElement(sourceType.getElementType()) ||
+        !isCopyFromDeadLocal(op))
+      return failure();
+    Value dst = adaptor.getTarget();
+    Value src = adaptor.getSource();
+    if (isPayloadArray(dst.getType())) {
+      auto array = cast<emitc::ArrayType>(dst.getType());
+      if (array.getRank() != 1)
+        return rewriter.notifyMatchFailure(op, "expected a rank-1 array");
+      markDestination(
+          elementLoop(rewriter, op.getLoc(), array.getShape()[0],
+                      "{}[_i] = std::move({}[_i]);", ValueRange{dst, src}),
+          0);
+    } else {
+      markDestination(
+          VerbatimOp::create(rewriter, op.getLoc(), "{} = std::move({});",
+                             ValueRange{dst, src}),
+          0);
+    }
+    rewriter.eraseOp(op);
+    return success();
+  }
+};
+
+// Any other payload copy is a real copy: ciphertexts use CHEDDAR's deep copy,
+// the other payload types have none.
+struct ConvertPayloadCopy : public OpConversionPattern<mlir::memref::CopyOp> {
+  using OpConversionPattern::OpConversionPattern;
+  LogicalResult matchAndRewrite(
+      mlir::memref::CopyOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter) const override {
+    auto sourceType = cast<MemRefType>(op.getSource().getType());
+    Type elementType = sourceType.getElementType();
+    if (payloadTypeName(elementType).empty()) return failure();
     if (op.getSource() == op.getTarget()) {
       rewriter.eraseOp(op);
       return success();
     }
-    return op.emitOpError("copying a Cheddar payload buffer is not supported");
+    if (!isa<cheddar::CiphertextType>(elementType))
+      return op.emitOpError("no deep copy for ") << elementType;
+    if (sourceType.getRank() > 1)
+      return op.emitOpError("cannot copy a payload buffer of rank > 1");
+
+    Value context;
+    if (auto function = op->getParentOfType<func::FuncOp>()) {
+      for (BlockArgument argument : function.getArguments()) {
+        auto kind = function.getArgAttrOfType<StringAttr>(
+            argument.getArgNumber(), cheddar::kSupportArgAttrName);
+        if (kind &&
+            (kind.getValue() == cheddar::ContextType::getMnemonic() ||
+             kind.getValue() == cheddar::BootContextType::getMnemonic())) {
+          context = argument;
+          break;
+        }
+      }
+    }
+    if (!context)
+      return op.emitOpError(
+          "cannot deep-copy a Cheddar ciphertext without a context argument");
+
+    if (sourceType.getRank() == 1) {
+      markDestination(
+          elementLoop(
+              rewriter, op.getLoc(), sourceType.getShape()[0],
+              "{}->Copy({}[_i], {}[_i]);",
+              ValueRange{context, adaptor.getTarget(), adaptor.getSource()}),
+          1);
+    } else {
+      emitOutParamCall(rewriter, op.getLoc(), context, "Copy",
+                       adaptor.getTarget(), ValueRange{adaptor.getSource()});
+    }
+    rewriter.eraseOp(op);
+    return success();
   }
 };
 
@@ -838,6 +988,18 @@ struct ConvertMemRefCopyPrimitive
   }
 };
 
+bool isPositiveZeroSplat(Attribute attr) {
+  auto elements = dyn_cast_if_present<ElementsAttr>(attr);
+  if (!elements || !elements.isSplat()) return false;
+
+  Attribute splat = elements.getSplatValue<Attribute>();
+  if (auto floatAttr = dyn_cast<FloatAttr>(splat))
+    return floatAttr.getValue().isPosZero();
+  if (auto intAttr = dyn_cast<IntegerAttr>(splat))
+    return intAttr.getValue().isZero();
+  return false;
+}
+
 // Upstream ConvertGlobal, minus its rejection of the `alignment` attribute that
 // bufferized constants carry; the global is C-array storage behind the flat
 // pointer handle.
@@ -861,6 +1023,11 @@ struct ConvertGlobalDropAlign
       return failure();
     bool staticSpecifier = vis == SymbolTable::Visibility::Private;
     Attribute initialValue = adaptor.getInitialValueAttr();
+    if (auto resource =
+            dyn_cast_if_present<DenseResourceElementsAttr>(initialValue)) {
+      initialValue = DenseElementsAttr::getFromRawBuffer(resource.getType(),
+                                                         resource.getData());
+    }
     if (type.getRank() == 0) {
       if (!op.getInitialValue()) return failure();
       auto elements = dyn_cast<ElementsAttr>(*op.getInitialValue());
@@ -868,6 +1035,9 @@ struct ConvertGlobalDropAlign
       initialValue = elements.getSplatValue<Attribute>();
     }
     if (isa_and_present<UnitAttr>(initialValue)) initialValue = {};
+    // Static storage is zero-initialized: drop a positive-zero splat
+    // initializer.
+    if (staticSpecifier && isPositiveZeroSplat(initialValue)) initialValue = {};
     // Non-const: the memref handle is a non-const pointer.
     auto global = emitc::GlobalOp::create(
         rewriter, op.getLoc(), adaptor.getSymName(),
@@ -944,8 +1114,10 @@ struct CheddarToEmitCDialectInterface : public ConvertToEmitCPatternInterface {
     populateCallOpTypeConversionPattern(patterns, typeConverter);
     target.addDynamicallyLegalOp<func::CallOp>(
         [&typeConverter](func::CallOp op) {
-          return typeConverter.isLegal(op);
+          // __heir_debug_* calls are rewritten by ConvertDebugCall.
+          return !isDebugPort(op.getCallee()) && typeConverter.isLegal(op);
         });
+    patterns.add<ConvertDebugCall>(typeConverter, ctx, /*benefit=*/2);
 
     target.addIllegalDialect<cheddar::CheddarDialect>();
     target.addIllegalDialect<arith::ArithDialect>();
@@ -963,7 +1135,8 @@ struct CheddarToEmitCDialectInterface : public ConvertToEmitCPatternInterface {
                  ConvertSubViewToPointer, ConvertPayloadCast,
                  ConvertGlobalDropAlign, ConvertGetGlobalPointer>(
         typeConverter, ctx, /*benefit=*/2);
-    patterns.add<RejectPayloadCopy>(typeConverter, ctx, /*benefit=*/3);
+    patterns.add<ConvertPayloadCopy>(typeConverter, ctx, /*benefit=*/3);
+    patterns.add<MoveCopyFromDeadLocal>(typeConverter, ctx, /*benefit=*/4);
 
     patterns
         .add<ConvertEncode, ConvertEncodeConstant, ConvertDecode, ConvertHRot,
@@ -1092,6 +1265,15 @@ struct CheddarEmitCBoundary
     VerbatimOp::create(b, module.getLoc(), "using word = uint64_t;");
     VerbatimOp::create(b, module.getLoc(), runtimeSource);
 
+    // Erase the external `__heir_debug_*` declarations: their calls were
+    // rewritten and the Cpp emitter cannot print a bodyless func.func.
+    SmallVector<func::FuncOp> debugDecls;
+    getOperation()->walk([&](func::FuncOp fn) {
+      if (fn.isExternal() && isDebugPort(fn.getName()))
+        debugDecls.push_back(fn);
+    });
+    for (func::FuncOp fn : debugDecls) fn.erase();
+
     // Written arguments: seeded from `bufferize.result`, closed over call
     // edges.
     llvm::StringMap<SmallVector<bool>> writtenFunctionArguments;
@@ -1164,6 +1346,27 @@ struct CheddarEmitCBoundary
 
     getOperation()->walk(
         [](Operation* op) { op->removeAttr(kDestinationOperandAttr); });
+
+    // Strip leftover tensor_ext.* boundary metadata (references the
+    // unregistered tensor_ext dialect, which mlir-to-cpp can't parse).
+    getOperation()->walk([](func::FuncOp fn) {
+      auto stripTensorExt =
+          [](DictionaryAttr d) -> std::optional<SmallVector<NamedAttribute>> {
+        if (!d) return std::nullopt;
+        SmallVector<NamedAttribute> kept;
+        for (NamedAttribute a : d)
+          if (!a.getName().strref().starts_with("tensor_ext."))
+            kept.push_back(a);
+        if (kept.size() == d.size()) return std::nullopt;
+        return kept;
+      };
+      for (unsigned i = 0, e = fn.getNumArguments(); i < e; ++i)
+        if (auto kept = stripTensorExt(fn.getArgAttrDict(i)))
+          fn.setArgAttrs(i, *kept);
+      for (unsigned i = 0, e = fn.getNumResults(); i < e; ++i)
+        if (auto kept = stripTensorExt(fn.getResultAttrDict(i)))
+          fn.setResultAttrs(i, *kept);
+    });
   }
 };
 

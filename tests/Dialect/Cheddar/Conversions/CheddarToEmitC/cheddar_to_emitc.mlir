@@ -14,7 +14,15 @@
 !boot_context = !cheddar.boot_context
 
 // CHECK: emitc.verbatim "namespace heir {
-// A private cleartext constant lowers to static C-array storage.
+// CHECK: emitc.global static @resource : !emitc.array<4xf32> = dense<[1.000000e+00, 2.000000e+00, 3.000000e+00, 4.000000e+00]>
+memref.global "private" constant @resource : memref<4xf32> = dense_resource<weights>
+
+// C++ zero-initializes private globals with no initializer. Dropping a
+// positive-zero splat keeps large generated arrays compact.
+// CHECK: emitc.global static @zero_splat : !emitc.array<4x4xf32>{{$}}
+memref.global "private" constant @zero_splat : memref<4x4xf32> = dense<0.000000e+00>
+
+// Negative floating-point zero must remain explicit.
 // CHECK: emitc.global static @negative_zero_splat : !emitc.array<4xf32> = dense<-0.000000e+00>
 memref.global "private" constant @negative_zero_splat : memref<4xf32> = dense<-0.000000e+00>
 
@@ -55,6 +63,17 @@ func.func @support_encoder(%ctx: !context, %input: tensor<4xf32>) -> tensor<!pla
   %d = tensor.empty() : tensor<!plaintext>
   %pt = cheddar.encode %enc, %input, %d {level = 1 : i64} : (!encoder, tensor<4xf32>, tensor<!plaintext>) -> tensor<!plaintext>
   return %pt : tensor<!plaintext>
+}
+
+// A memref.copy that survives alias folding has true copy semantics and lowers
+// through the same CHEDDAR deep-copy API.
+// CHECK: func.func @memref_copy
+// CHECK: emitc.member_call_opaque %arg0 "Copy"(%arg2, %arg1)
+func.func @memref_copy(%ctx: !context {cheddar.support = "context"}, %input: memref<!ciphertext>,
+                       %output: memref<!ciphertext>) {
+  memref.copy %input, %output
+      : memref<!ciphertext> to memref<!ciphertext>
+  return
 }
 
 // CHEDDAR's Context overloads Add/Sub/Mult on the second operand type, so the
@@ -168,3 +187,11 @@ func.func @boot(%ctx: !boot_context, %ct: tensor<!ciphertext>, %evk: !evk_map) -
   %r = cheddar.boot %ctx, %ct, %evk, %d0 : (!boot_context, tensor<!ciphertext>, !evk_map, tensor<!ciphertext>) -> tensor<!ciphertext>
   return %r : tensor<!ciphertext>
 }
+
+{-#
+  dialect_resources: {
+    builtin: {
+      weights: "0x040000000000803f000000400000404000008040"
+    }
+  }
+#-}

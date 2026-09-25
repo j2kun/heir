@@ -10,9 +10,14 @@ cc_library(
     srcs = ["CheddarBufferize.cpp"],
     hdrs = ["CheddarBufferize.h"],
     deps = [
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:BufferizationTransforms",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
         "@llvm-project//mlir:MemRefTransforms",
         "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:Transforms",
     ],
 )
