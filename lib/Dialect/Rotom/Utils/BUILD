@@ -89,6 +89,35 @@ cc_test(
 )
 
 cc_library(
+    name = "IterationAlignment",
+    srcs = ["IterationAlignment.cpp"],
+    hdrs = ["IterationAlignment.h"],
+    deps = [
+        "@heir//lib/Dialect/Rotom/IR:Dialect",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_test(
+    name = "IterationAlignmentTest",
+    srcs = ["IterationAlignmentTest.cpp"],
+    deps = [
+        ":IterationAlignment",
+        ":RotomTensorExtLayoutLowering",
+        "@googletest//:gtest_main",
+        "@heir//lib/Dialect/Rotom/IR:Dialect",
+        "@heir//lib/Utils/Layout:IslConversion",
+        "@heir//lib/Utils/Layout:Utils",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
     name = "RotomTensorExtLayoutLowering",
     srcs = ["RotomTensorExtLayoutLowering.cpp"],
     hdrs = ["RotomTensorExtLayoutLowering.h"],

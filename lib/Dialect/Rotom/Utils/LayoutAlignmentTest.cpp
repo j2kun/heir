@@ -92,6 +92,38 @@ TEST_F(LayoutAlignmentTest, OperatorAlignedMatVecOperands) {
   EXPECT_FALSE(rotom::isOperatorAligned(map, lhs, rhsSwapped));
 }
 
+// Known bugs, disabled so the suite stays green. Run with
+// --gtest_also_run_disabled_tests to reproduce. IterationAlignmentTest covers
+// each case on the iteration-space design.
+
+// Stride order inside a multi-piece run is unchecked: [0:2:1][0:2:2] places
+// x[1] in slots 8..11 while A's k = 1 column is in slots 4..7.
+TEST_F(LayoutAlignmentTest, DISABLED_KnownBugStrideOrderWithinRuns) {
+  auto map = rotom::OperatorAlignmentMap::matmul(2, 1);
+  LayoutAttr lhs = layout({dim(1, 4), dim(0, 4)}, 16);
+  LayoutAttr misordered = layout(
+      {dim(0, 2, /*stride=*/1), dim(0, 2, /*stride=*/2), dim(-1, 4)}, 16);
+  EXPECT_FALSE(rotom::isOperatorAligned(map, lhs, misordered));
+}
+
+// checkDimAlignment reads rhsToLhs[1] from a map of size 1 (aborts).
+TEST_F(LayoutAlignmentTest, DISABLED_KnownBugAxisOutsideMap) {
+  auto map = rotom::OperatorAlignmentMap::matmul(2, 1);
+  LayoutAttr lhs = layout({dim(/*dim=*/-1, 4), dim(0, 4)}, 16);
+  LayoutAttr rhs = layout({dim(1, 4), dim(0, 4)}, 16);
+  EXPECT_FALSE(rotom::isOperatorAligned(map, lhs, rhs));
+}
+
+// rollExempt indexes the rhs piece list with the lhs roll's piece position
+// (2) when the sides have different piece counts.
+TEST_F(LayoutAlignmentTest, DISABLED_KnownBugRollExemptPositionLookup) {
+  auto map = rotom::OperatorAlignmentMap::matmul();
+  LayoutAttr lhs = LayoutAttr::getCanonical(
+      &context, {dim(1, 4), dim(0, 4, 4), dim(0, 4, 1)}, 64, /*rolls=*/{2, 0});
+  LayoutAttr rhs = layout({dim(0, 4), dim(-1, 16)}, 64);
+  EXPECT_TRUE(rotom::isOperatorAligned(map, lhs, rhs));
+}
+
 // Block matmul with the map for ranks (3, 3): the batch dim locksteps on
 // both sides, then the 2-D pattern applies to the inner dims.
 TEST_F(LayoutAlignmentTest, OperatorAlignedBlockMatmulOperands) {
@@ -388,6 +420,32 @@ TEST_F(LayoutAlignmentTest, OutputLayoutElementwiseIsTheLhs) {
   auto out = rotom::outputLayout(map, /*isMatmul=*/false, a, a, -1, -1);
   ASSERT_TRUE(out.has_value());
   EXPECT_EQ(*out, a);
+}
+
+// Known bug (disabled): a paired batch axis falls through to the "both
+// replication" branch and becomes a gap.
+TEST_F(LayoutAlignmentTest, DISABLED_KnownBugBlockMatmulOutputDropsBatch) {
+  auto map = rotom::OperatorAlignmentMap::matmul(3, 3);
+  LayoutAttr lhs = layout({dim(0, 2), dim(2, 4), dim(1, 4)}, 32);
+  LayoutAttr rhs = layout({dim(0, 2), dim(1, 4), dim(/*dim=*/-1, 4)}, 32);
+  auto out = rotom::outputLayout(map, /*isMatmul=*/true, lhs, rhs,
+                                 /*lhsSumDim=*/2, /*rhsSumDim=*/1);
+  ASSERT_TRUE(out.has_value());
+  EXPECT_EQ(fmtDims(rotom::layoutDims(*out)), "[0:2:1][G:4:1][1:4:1]");
+}
+
+// Known bug (disabled): result axes keep operand ids, so B's j (1) collides
+// with C's i; C[b, i, j] numbers j as 2. The collided layout is invalid, so
+// building it aborts on the verifier assert in LayoutAttr::get.
+TEST_F(LayoutAlignmentTest, DISABLED_KnownBugOutputAxisNumbering) {
+  auto map = rotom::OperatorAlignmentMap::matmul(3, 2);
+  LayoutAttr lhs = layout({dim(-1, 2), dim(0, 2), dim(2, 2), dim(1, 2)}, 16);
+  LayoutAttr rhs = layout({dim(1, 2), dim(-1, 2), dim(0, 2), dim(-1, 2)}, 16);
+  ASSERT_TRUE(rotom::isOperatorAligned(map, lhs, rhs));
+  auto out = rotom::outputLayout(map, /*isMatmul=*/true, lhs, rhs,
+                                 /*lhsSumDim=*/2, /*rhsSumDim=*/0);
+  ASSERT_TRUE(out.has_value());
+  EXPECT_EQ(fmtDims(rotom::layoutDims(*out)), "[2:2:1][0:2:1][G:2:1][1:2:1]");
 }
 
 // The whole reference matmul pipeline.
