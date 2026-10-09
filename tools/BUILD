@@ -362,5 +362,6 @@ cc_binary(
         "@llvm-project//mlir:RegisterAllDialects",
         "@tamagoyaki//:MLIREmatch",
         "@tamagoyaki//:MLIREquivalence",
+        "@tamagoyaki//:TamagoyakiTiming",
     ],
 )
