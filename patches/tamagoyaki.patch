@@ -1,14 +1,21 @@
-diff --git a/vendor/mlir/SimpleOperationInfo.h b/vendor/mlir/SimpleOperationInfo.h
-index c2c50a0..a2e6b04 100644
---- a/vendor/mlir/SimpleOperationInfo.h
-+++ b/vendor/mlir/SimpleOperationInfo.h
-@@ -25,8 +25,7 @@ struct SimpleOperationInfo : public llvm::DenseMapInfo<Operation *> {
-     auto *rhs = const_cast<Operation *>(rhsC);
-     if (lhs == rhs)
-       return true;
--    if (lhs == getTombstoneKey() || lhs == getEmptyKey() ||
--        rhs == getTombstoneKey() || rhs == getEmptyKey())
-+    if (!lhs || !rhs)
-       return false;
-     return OperationEquivalence::isEquivalentTo(
-         const_cast<Operation *>(lhsC), const_cast<Operation *>(rhsC),
+diff --git a/src/EquivalenceSelectIlp.cpp b/src/EquivalenceSelectIlp.cpp
+index 3ddfbc4..34fd9aa 100644
+--- a/src/EquivalenceSelectIlp.cpp
++++ b/src/EquivalenceSelectIlp.cpp
+@@ -59,16 +59,10 @@
+ #include <cstdint>
+ #include <initializer_list>
+ #include <limits>
+-#include <lp_data/HConst.h>
+-#include <lp_data/HStruct.h>
+-#include <lp_data/HighsLp.h>
+-#include <lp_data/HighsStatus.h>
+ #include <mlir/IR/Builders.h>
+ #include <mlir/IR/Value.h>
+ #include <mlir/Support/WalkResult.h>
+-#include <model/HighsModel.h>
+ #include <string>
+-#include <util/HighsInt.h>
+ #include <utility>
+ #include <vector>
+ 

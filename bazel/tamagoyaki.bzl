@@ -6,7 +6,7 @@ def _tamagoyaki_dep_impl(_):
     new_git_repository(
         name = "tamagoyaki",
         remote = "https://github.com/jumerckx/Tamagoyaki.git",
-        commit = "30f1b4ef66575800c556b74abb73ad2f4e9020ef",
+        commit = "94c395cf8cec6d4b8c3e2ac92eee857b00bc9c15",
         build_file = "@heir//bazel:tamagoyaki.BUILD",
         patches = ["@heir//patches:tamagoyaki.patch"],
         patch_args = ["-p1"],
