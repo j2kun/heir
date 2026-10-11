@@ -1,6 +1,7 @@
 #include "lib/Utils/Layout/ConvolutionLayoutBuilder.h"
 
 #include <cstdint>
+#include <vector>
 
 #include "lib/Dialect/Secret/IR/SecretAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
@@ -10,6 +11,7 @@
 #include "lib/Kernel/KernelName.h"
 #include "lib/Utils/Layout/Convolution.h"
 #include "lib/Utils/Layout/Utils.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/Presburger/IntegerRelation.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
@@ -40,13 +42,25 @@ FailureOr<ConvolutionLayout> getMatvecDiagonalConvolutionLayout(
 
   IntegerRelation dataRelation =
       getRowMajorLayoutRelation(dataType, ciphertextSize);
-  FailureOr<IntegerRelation> filterRelation =
-      get2dConvChwFchwFilterDiagonalizedRelation(filterType, dataType, strides,
-                                                 /*padding=*/0, ciphertextSize,
-                                                 interchangeRows);
-  if (failed(filterRelation)) return failure();
+  // The filter layout is built as a sequence of simple steps (Toeplitz
+  // expansion, row interchange, flattening, diagonalization); compose them into
+  // a single relation, as layout propagation does.
+  FailureOr<std::vector<IntegerRelation>> filterRelations =
+      get2dConvChwFchwFilterAsSequence(filterType, dataType, strides,
+                                       /*padding=*/0, ciphertextSize,
+                                       interchangeRows);
+  if (failed(filterRelations) || filterRelations->empty()) return failure();
+  FailureOr<IntegerRelation> filterRelation = filterRelations->front();
+  for (const IntegerRelation& step : llvm::drop_begin(*filterRelations)) {
+    filterRelation->compose(step);
+  }
+  // The pixel-shuffle of the result is a separate relation composed on top.
   IntegerRelation resultRelation = get2dConvResultRelation(
       outputType, strides, /*padding=*/0, ciphertextSize, interchangeRows);
+  if (interchangeRows) {
+    resultRelation.compose(get2dConvRowInterchangeLayoutRelation(
+        outputType, strides, ciphertextSize));
+  }
 
   ConvolutionLayout layout;
   layout.dataLayout = LayoutAttr::getFromIntegerRelation(ctx, dataRelation);
