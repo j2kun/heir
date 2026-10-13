@@ -19,7 +19,8 @@
 - `scripts/templates/templates.py` (which requires `python-fire` and `jinja2`)
   provides boilerplate for generating new transforms and passes. After running
   the script to create a new pass, one still must register the pass in
-  `heir-opt.cpp` and add the necessary build dependencies.
+  `tools/HeirOptRegistration.cpp` (shared by `heir-opt` and `tamagoyaki-demo`)
+  and add the necessary build dependencies to its `HeirOptRegistration` target.
 
 ### heir-opt flags
 

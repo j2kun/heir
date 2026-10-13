@@ -1,6 +1,7 @@
 # HEIR tools
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -14,21 +15,35 @@ WORKSPACE_PATH = ""
 cc_binary(
     name = "heir-opt",
     srcs = ["heir-opt.cpp"],
+    includes = ["include"],
+    deps = [
+        ":HeirOptRegistration",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:MlirOptLib",
+    ],
+)
+
+# Registration of all dialects, passes and pipelines exposed by heir-opt, shared
+# with other opt-like drivers.
+cc_library(
+    name = "HeirOptRegistration",
+    srcs = ["HeirOptRegistration.cpp"],
+    hdrs = ["HeirOptRegistration.h"],
     data = [
         "@abc//:abc_bin",
         "@heir//lib/Transforms/YosysOptimizer/yosys:techmap_lut3.v",
         "@heir//lib/Transforms/YosysOptimizer/yosys:techmap_lut4.v",
     ],
+    includes = ["include"],
     # The strings in these defines are passed through various pre-processors,
     # including the materializing of quoted strings as done in bash, so to
     # ensure that the #define'd variables stay quoted strings in the generated
     # C++, we need to enclose them in `\\\"` (an escaped backslash followed by
     # an escaped quote).
-    defines = [
+    local_defines = [
         "HEIR_ABC_BINARY=\\\"$(rootpath @abc//:abc_bin)\\\"",
         "HEIR_YOSYS_SCRIPTS_DIR=\\\"" + WORKSPACE_PATH + "lib/Transforms/YosysOptimizer/yosys\\\"",
     ],
-    includes = ["include"],
     deps = [
         "@heir//lib/Analysis/NoiseAnalysis",  # buildcleaner: keep
         "@heir//lib/Analysis/NoiseAnalysis/BFV:NoiseAnalysis",  # buildcleaner: keep
@@ -357,8 +372,7 @@ cc_binary(
     name = "tamagoyaki-demo",
     srcs = ["tamagoyaki-demo.cpp"],
     deps = [
-        "@heir//lib/Dialect/Secret/IR:Dialect",
-        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        ":HeirOptRegistration",
         "@heir//lib/Transforms/InsertEquivalentConvLayouts",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:MlirOptLib",
